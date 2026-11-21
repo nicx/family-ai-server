@@ -46,7 +46,7 @@ Etablierte selbst gehostete Chat-Oberflächen wie [Open WebUI](https://github.co
 
 ## Installation
 
-1. `Family AI Server.app` aus den [Releases](../../releases) laden und nach `/Programme` ziehen.
+1. App bauen (macOS mit Swift-Toolchain bzw. Command Line Tools und Go): `./Scripts/make-app.sh`, danach `dist/Family AI Server.app` nach `/Programme` ziehen. Fertige Downloads gibt es noch nicht.
 2. Beim ersten Öffnen: Rechtsklick → *Öffnen* (die App ist selbstsigniert, nicht von Apple notarisiert). Bei neueren macOS-Versionen ggf. *Systemeinstellungen → Datenschutz & Sicherheit → Trotzdem öffnen*.
 3. In der Menüleiste erscheint ein Stern. *Family AI Server öffnen* → erstes Konto anlegen (wird Admin), OpenRouter-Schlüssel eintragen.
 4. Unter *Verwaltung* Personen anlegen, Schlüssel, Modelle und Funktionen festlegen.
