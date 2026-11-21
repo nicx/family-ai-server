@@ -21,6 +21,10 @@ A simple, private AI for the whole family: one Mac runs the server, everyone use
 
 <p align="center"><img src="docs/screenshots/admin.png" width="560" alt="Admin area: people"></p>
 
+## Why this project
+
+Established self-hosted chat front ends such as [Open WebUI](https://github.com/open-webui/open-webui) and [LibreChat](https://github.com/danny-avila/LibreChat) are powerful, but for a family they are overloaded and not intuitive enough for children. Family AI Server does less on purpose: one clear chat, one account per person, safe defaults for kids, and the controls parents actually need.
+
 ## Features
 
 - **One account per person** – roles admin, parent, child; only the admin creates accounts.

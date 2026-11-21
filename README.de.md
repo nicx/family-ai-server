@@ -21,6 +21,10 @@ Family AI Server ist eine schlanke Familien-KI: Ein Mac im Haus betreibt den Ser
 
 <p align="center"><img src="docs/screenshots/admin.png" width="560" alt="Verwaltung: Personen"></p>
 
+## Warum dieses Projekt
+
+Etablierte selbst gehostete Chat-Oberflächen wie [Open WebUI](https://github.com/open-webui/open-webui) und [LibreChat](https://github.com/danny-avila/LibreChat) sind mächtig, für eine Familie aber überladen und für Kinder nicht intuitiv genug. Family AI Server macht bewusst weniger: ein klarer Chat, ein Konto pro Person, sichere Voreinstellungen für Kinder und die Einstellungen, die Eltern wirklich brauchen.
+
 ## Funktionen
 
 - **Ein Konto pro Person** – Rollen Admin, Elternteil, Kind; Konten legt nur der Admin an.
