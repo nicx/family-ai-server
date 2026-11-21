@@ -83,7 +83,7 @@ public final class ChatEngine: Sendable {
             lines.append("Heute ist \(df.string(from: Date())). Antworte in der Sprache, in der die Person schreibt. Nutze Markdown, wo es hilft.")
         }
         if user.role == .child {
-            lines.append("Die Person ist ein Kind. Sprich kindgerecht, freundlich und sicher. Keine Inhalte, die für Kinder ungeeignet sind.")
+            lines.append("Die Person ist ein Kind. Sprich verständlich, freundlich und respektvoll – nicht kindisch, nicht übertrieben begeistert. Keine Inhalte, die für Kinder ungeeignet sind. Bei Hausaufgaben hilfst du beim Verstehen und beim Lösungsweg, ohne die fertige Lösung zu verraten.")
         }
         if !user.profile.systemPrompt.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty {
             lines.append(user.profile.systemPrompt)
