@@ -202,7 +202,7 @@ label.field > span { display: block; font-size: 13px; color: var(--muted); margi
 .suggestions button:hover { border-color: var(--accent); }
 
 /* Voice mode */
-.voice-overlay { position: absolute; inset: 0; background: #0d0c1c; --muted: #a8a5be; z-index: 20; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 24px; padding: 24px; }
+.voice-overlay { position: absolute; inset: 0; background: var(--bg); z-index: 20; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 24px; padding: 24px; }
 /* Two overlapping circles: the app mark. They react to your voice (listening),
    orbit each other (thinking) and breathe in turn (speaking). */
 .duo { position: relative; width: 260px; height: 200px; --lvl: 0; }
@@ -211,7 +211,8 @@ label.field > span { display: block; font-size: 13px; color: var(--muted); margi
   opacity: calc(.35 + var(--lvl) * .65); transition: opacity .12s; }
 .duo .spin { position: absolute; inset: 0; }
 .duo i { position: absolute; top: 50%; left: 50%; width: 130px; height: 130px; margin: -65px 0 0 -65px; border-radius: 50%;
-  mix-blend-mode: screen; will-change: transform; }
+  mix-blend-mode: multiply; will-change: transform; }
+@media (prefers-color-scheme: dark) { .duo i { mix-blend-mode: screen; } }
 .duo .c1 { background: linear-gradient(135deg, #a78bfa, #6366f1); transform: translateX(calc(-34px - var(--lvl) * 26px)) scale(calc(1 + var(--lvl) * .22)); }
 .duo .c2 { background: linear-gradient(135deg, #38bdf8, #22d3ee); transform: translateX(calc(34px + var(--lvl) * 26px)) scale(calc(1 + var(--lvl) * .22)); }
 .duo.listening .c1, .duo.listening .c2 { transition: transform .09s linear; }
