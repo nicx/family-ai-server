@@ -216,7 +216,7 @@ public final class FamilyServer: Sendable {
             let needsSetup = try await store.userCount() == 0
             return HTTP.json(["aiName": s.aiName, "language": s.language, "needsSetup": needsSetup,
                               "passkeys": Passkeys.manager(publicURL: s.publicURL, name: s.aiName) != nil,
-                              "publicURL": s.publicURL, "version": version])
+                              "publicURL": s.publicURL, "version": version, "build": assetVersion])
         }
 
         api.post("setup") { [self] request, _ in

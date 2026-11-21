@@ -46,7 +46,20 @@ const I = {
 };
 const icon = (name) => h("span", { html: I[name], style: "display:inline-flex" });
 
+const BUILD = "__V__";
 class ApiError extends Error {}
+
+/** An open tab or home-screen app keeps running old code after the server was updated.
+ *  Reload as soon as the app comes to the foreground and the server has a newer build. */
+async function checkBuild(force = false) {
+  try {
+    const i = await fetch("/api/info", { cache: "no-store" }).then((r) => r.json());
+    if (!i.build || i.build === BUILD) return;
+    const busy = document.querySelector(".voice-overlay") || els?.input?.value;
+    if (force || !busy) location.reload();
+  } catch {}
+}
+document.addEventListener("visibilitychange", () => { if (document.visibilityState === "visible") checkBuild(); });
 async function api(method, path, body, opts = {}) {
   // Extra headers are merged, never replace the CSRF header.
   const { headers: extra, raw, ...rest } = opts;
@@ -57,6 +70,12 @@ async function api(method, path, body, opts = {}) {
   const res = await fetch(`/api/${path}`, init);
   if (raw) { if (!res.ok) throw new ApiError(await errText(res)); return res; }
   if (res.status === 401 && path !== "login" && path !== "me") { location.reload(); throw new ApiError("401"); }
+  if (res.status === 403 && !raw) {
+    // Old code after a server update (e.g. a renamed CSRF header): reload once to get the new version.
+    const ct0 = res.headers.get("content-type") || "";
+    const msg = ct0.includes("json") ? (await res.clone().json().catch(() => ({}))).error || "" : "";
+    if (/CSRF/.test(msg)) { await checkBuild(true); }
+  }
   const ct = res.headers.get("content-type") || "";
   const data = ct.includes("json") ? await res.json() : await res.text();
   if (!res.ok) throw new ApiError((data && data.error) || res.statusText);
