@@ -29,7 +29,8 @@ Etablierte selbst gehostete Chat-Oberflächen wie [Open WebUI](https://github.co
 
 - **Ein Konto pro Person** – Rollen Admin, Elternteil, Kind; Konten legt nur der Admin an.
 - **Chat** mit Streaming, Markdown, Code, Verlauf und Suche.
-- **Modellwahl pro Person** – der Admin legt fest, welche Modelle jemand nutzen darf (auch für Kinder). Eine neue Installation startet mit einem kleinen Katalog (Claude Haiku/Sonnet, GPT Luna/Sol).
+- **Modelle einfach verwaltet** – eine Liste mit Modellen für alle, ein Standardmodell der Familie und pro Person zusätzliche Modelle obendrauf. Wer nur das Standardmodell hat, bekommt gar keine Modellauswahl (ideal für Kinder); Admins sehen alle Modelle. Eine neue Installation startet mit einer kleinen Liste (Claude Haiku/Sonnet, GPT Luna/Sol).
+- **Knopf „Stärker antworten“** – beantwortet eine Frage einmal mit einem stärkeren Modell (Familien-Vorgabe, pro Person: Familienstandard, aus oder ein bestimmtes Modell), ohne das Chat-Modell zu ändern.
 - **Bilder erzeugen**, **Bilder & Dateien verstehen** (Foto vom Arbeitsblatt, PDF, Word, Text).
 - **Sprache**: Diktieren, Vorlesen und Sprachchat (freihändig).
 - **Websuche** mit Quellen, **Gedächtnis** pro Person, **Dokumente** durchsuchen.
