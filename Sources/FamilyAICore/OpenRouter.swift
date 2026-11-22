@@ -279,9 +279,17 @@ public final class OpenRouter: Sendable {
 
     /// Public model catalog (no key needed). Ohne `output_modalities=all` liefert OpenRouter nur Modelle mit Text-Ausgabe –
     /// reine Bild-, Sprach- und Transkriptionsmodelle (z. B. MAI-Image, Whisper) fehlten dann in den Auswahllisten.
+    /// Embedding-Modelle stehen nur im eigenen Endpunkt `/embeddings/models` (Ausgabe „embeddings“).
     public func models() async throws -> [ModelInfo] {
-        var comps = URLComponents(url: baseURL.appendingPathComponent("models"), resolvingAgainstBaseURL: false)!
-        comps.queryItems = [URLQueryItem(name: "output_modalities", value: "all")]
+        let main = try await fetchModels(path: "models", query: [URLQueryItem(name: "output_modalities", value: "all")])
+        let embeddings = (try? await fetchModels(path: "embeddings/models", query: [])) ?? []
+        let known = Set(main.map(\.id))   // `all` enthält Embedding-Modelle teils schon
+        return main + embeddings.filter { !known.contains($0.id) }
+    }
+
+    private func fetchModels(path: String, query: [URLQueryItem]) async throws -> [ModelInfo] {
+        var comps = URLComponents(url: baseURL.appendingPathComponent(path), resolvingAgainstBaseURL: false)!
+        if !query.isEmpty { comps.queryItems = query }
         var r = URLRequest(url: comps.url!)
         r.setValue(appTitle, forHTTPHeaderField: "X-Title")
         let (data, resp) = try await session.data(for: r)

@@ -1082,7 +1082,7 @@ async function familyTab() {
       field(t("ttsModel"), sel("ttsModel", (m) => m.out.includes("speech"))),
       field(t("ttsVoice"), inp("ttsVoice")),
       field(t("sttModel"), sel("sttModel", (m) => m.out.includes("transcription"))),
-      field(t("embedModel"), inp("embedModel")),
+      field(t("embedModel"), sel("embedModel", (m) => m.out.includes("embeddings"))),
       field(t("titleModel"), sel("titleModel", (m) => m.out.includes("text"))),
       field(t("defaultModel"), sel("defaultModel", (m) => m.out.includes("text"))),
       field(t("escalationModel"), sel("escalationModel", (m) => m.out.includes("text"))),
