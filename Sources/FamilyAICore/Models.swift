@@ -20,8 +20,6 @@ public struct Profile: Codable, Sendable, Equatable {
     public var code: Bool = false
     /// Children only: parents may read this child's chats.
     public var parentalView: Bool = false
-    /// Show the model picker. Off = the person always gets the default model (plus escalation).
-    public var modelChoice: Bool = true
     /// "" = family default, "off" = no escalation button, otherwise a model id.
     public var escalationModel: String = ""
 
@@ -49,7 +47,6 @@ public struct Profile: Codable, Sendable, Equatable {
         documents = try c.decodeIfPresent(Bool.self, forKey: .documents) ?? d.documents
         code = try c.decodeIfPresent(Bool.self, forKey: .code) ?? d.code
         parentalView = try c.decodeIfPresent(Bool.self, forKey: .parentalView) ?? d.parentalView
-        modelChoice = try c.decodeIfPresent(Bool.self, forKey: .modelChoice) ?? d.modelChoice
         escalationModel = try c.decodeIfPresent(String.self, forKey: .escalationModel) ?? d.escalationModel
     }
 }

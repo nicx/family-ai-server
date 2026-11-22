@@ -320,7 +320,6 @@ public final class FamilyServer: Sendable {
             return HTTP.json(["models": models.map { ["id": $0.id, "name": $0.name, "vision": $0.inputModalities.contains("image"),
                                                       "tools": $0.supportsTools, "imageOut": $0.outputModalities.contains("image")] },
                               "default": def as Any,
-                              "choice": s.user.profile.modelChoice,
                               "escalation": await escalationModel(for: s.user) != nil])
         }
 
@@ -392,7 +391,7 @@ public final class FamilyServer: Sendable {
             let o = try await HTTP.object(request)
             let models = await allowedModels(for: s.user)
             var model = (o["model"] as? String) ?? ""
-            if !s.user.profile.modelChoice || !models.contains(where: { $0.id == model }) {
+            if !models.contains(where: { $0.id == model }) {
                 model = await defaultModel(for: s.user, models: models) ?? ""
             }
             guard !model.isEmpty else { throw APIError.bad("Kein Modell freigegeben") }
@@ -424,7 +423,6 @@ public final class FamilyServer: Sendable {
             let o = try await HTTP.object(request)
             if let t = o["title"] as? String, !t.trimmingCharacters(in: .whitespaces).isEmpty { chat.title = String(t.prefix(120)) }
             if let m = o["model"] as? String {
-                guard s.user.profile.modelChoice else { throw APIError.forbidden }
                 guard await allowedModels(for: s.user).contains(where: { $0.id == m }) else { throw APIError.forbidden }
                 chat.model = m
             }

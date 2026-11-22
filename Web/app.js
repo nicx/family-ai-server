@@ -247,7 +247,7 @@ async function startApp() {
 
   const m = await api("GET", "models");
   S.models = m.models; S.defaultModel = m.default;
-  S.modelChoice = m.choice !== false; S.escalation = !!m.escalation;
+  S.escalation = !!m.escalation;
   fillModelSelect(S.defaultModel);
   if (p.code) S.devices = await api("GET", "devices").catch(() => []);
   if (["parent", "admin"].includes(S.me.user.role)) loadKids();
@@ -259,7 +259,7 @@ async function startApp() {
 function fillModelSelect(selected) {
   els.modelSelect.replaceChildren(...S.models.map((m) => h("option", { value: m.id }, m.name.replace(/^[^:]+:\s*/, ""))));
   if (selected) els.modelSelect.value = selected;
-  els.modelSelect.classList.toggle("hidden", S.models.length < 2 || !S.modelChoice);
+  els.modelSelect.classList.toggle("hidden", S.models.length < 2);
 }
 
 function openDrawer() { els.app.classList.add("drawer-open"); }
@@ -349,7 +349,7 @@ async function openChat(id) {
   if (!S.models.some((m) => m.id === S.chat.model)) els.modelSelect.append(h("option", { value: S.chat.model }, S.chat.model));
   els.modelSelect.value = S.chat.model;
   els.modelSelect.disabled = S.readOnly;
-  els.modelSelect.classList.toggle("hidden", !S.modelChoice || (S.models.length < 2 && !S.readOnly));
+  els.modelSelect.classList.toggle("hidden", S.models.length < 2 && !S.readOnly);
   renderMessages();
   renderChatList();
 }
@@ -970,9 +970,9 @@ async function editUser(u, listBox) {
   if (p.escalationModel && p.escalationModel !== "off" && !catalog.some((m) => m.id === p.escalationModel)) f.escalation.append(h("option", { value: p.escalationModel }, p.escalationModel));
   f.escalation.value = p.escalationModel || "";
   const picker = modelPicker(catalog, p.allowedModels);
-  const feats = { images: p.images, voice: p.voice, webSearch: p.webSearch, memory: p.memory, documents: p.documents, code: p.code, parentalView: p.parentalView, modelChoice: p.modelChoice !== false };
+  const feats = { images: p.images, voice: p.voice, webSearch: p.webSearch, memory: p.memory, documents: p.documents, code: p.code, parentalView: p.parentalView };
   const featBox = h("div", { class: "card" },
-    [["images", "fImages"], ["voice", "fVoice"], ["webSearch", "fWeb"], ["memory", "fMemory"], ["documents", "fDocs"], ["code", "fCode"], ["parentalView", "parentalView"], ["modelChoice", "modelChoice"]]
+    [["images", "fImages"], ["voice", "fVoice"], ["webSearch", "fWeb"], ["memory", "fMemory"], ["documents", "fDocs"], ["code", "fCode"], ["parentalView", "parentalView"]]
       .map(([k, label]) => sw(t(label), feats[k], (e) => (feats[k] = e.target.checked))));
   const err = h("div", { class: "error-text" });
   const ov = overlay(isNew ? t("addPerson") : u.displayName, h("div", {},
@@ -994,7 +994,7 @@ async function editUser(u, listBox) {
       h("button", { class: "btn primary", onclick: async () => {
         err.textContent = "";
         const profile = { ...p, images: feats.images, voice: feats.voice, webSearch: feats.webSearch, memory: feats.memory, documents: feats.documents,
-          code: feats.code, parentalView: feats.parentalView, modelChoice: feats.modelChoice, escalationModel: f.escalation.value, allowedModels: picker.value(), defaultModel: f.defaultModel.value || null, systemPrompt: f.systemPrompt.value };
+          code: feats.code, parentalView: feats.parentalView, escalationModel: f.escalation.value, allowedModels: picker.value(), defaultModel: f.defaultModel.value || null, systemPrompt: f.systemPrompt.value };
         const body = { displayName: f.displayName.value, role: f.role.value, profile };
         if (f.password.value) body.password = f.password.value;
         if (f.apiKey.value.trim()) body.apiKey = f.apiKey.value.trim();
