@@ -953,9 +953,7 @@ function modelPicker(catalog, selected, { single = false, name = "mp" + Math.ran
 async function editUser(u, listBox) {
   const isNew = !u;
   const p = u?.profile || { images: true, voice: true, webSearch: true, memory: true, documents: true, code: false, parentalView: false, allowedModels: [], systemPrompt: "" };
-  const settings = await api("GET", "admin/settings");
-  let catalog = (await getCatalog()).filter((m) => m.out.includes("text"));
-  if (settings.catalog?.length) catalog = catalog.filter((m) => settings.catalog.includes(m.id));
+  const catalog = (await getCatalog()).filter((m) => m.out.includes("text"));
   const f = {
     displayName: h("input", { type: "text", value: u?.displayName || "" }),
     username: h("input", { type: "text", value: u?.username || "", disabled: !isNew, autocapitalize: "none" }),

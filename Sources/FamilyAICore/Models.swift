@@ -6,7 +6,7 @@ public enum Role: String, Codable, Sendable, CaseIterable {
 
 /// Per-person settings, set by the admin only.
 public struct Profile: Codable, Sendable, Equatable {
-    /// Models this person may pick. Empty = all models of the catalog.
+    /// Additional models for this person, on top of the family list (GlobalSettings.catalog).
     public var allowedModels: [String] = []
     /// Model preselected for new chats.
     public var defaultModel: String?
@@ -136,7 +136,7 @@ public struct GlobalSettings: Codable, Sendable, Equatable {
     public var smtpUser: String = ""
     /// Public origin, e.g. https://ai.example.org — needed for passkeys.
     public var publicURL: String = ""
-    /// Models offered in the catalog (empty = all chat models from OpenRouter).
+    /// Models everyone may pick (plus the default models and personal extras). Empty = only the default model.
     public var catalog: [String] = GlobalSettings.starterCatalog
     public var webSearchMaxResults: Int = 5
     /// Preselected model for people without their own default.
