@@ -19,7 +19,7 @@ struct FamilyAICoreTests {
     static func runAll() async {
         let t = FamilyAICoreTests()
         t.testChunking(); t.testCosine(); t.testPrivateAddresses(); t.testPasswords(); t.testSpeakable(); t.testUsernames(); t.testDataURL()
-        t.testMailCurlConfig(); t.testSettingsDefaults()
+        t.testMailCurlConfig(); t.testSettingsDefaults(); t.testPrivacy()
         do { try await t.testStoreRoundtrip() } catch { check(false, "Store: \(error)") }
         await t.testRunnerHubRoundtrip()
         print("\(checks) Prüfungen, \(failures) Fehler")
@@ -120,6 +120,16 @@ struct FamilyAICoreTests {
         let msg = Mailer.message(sender: "a@x", recipient: "b@y", subject: "Grüße", body: "Zeile 1\nZeile 2")
         check(msg.contains("Subject: =?UTF-8?B?"), "encoded subject")
         check(msg.contains("Zeile 1\r\nZeile 2\r\n"), "CRLF body")
+    }
+
+    func testPrivacy() {
+        check(ChatEngine.firstName("Hanna Mustermann") == "Hanna", "first name only")
+        check(ChatEngine.firstName("  Max   von Beispiel ") == "Max", "first name ignores extra spaces")
+        check(ChatEngine.firstName("Timo") == "Timo" && ChatEngine.firstName("") == "", "single / empty name")
+        let id = "7C1F2D9A-1111-2222-3333-444455556666"
+        let p = ChatEngine.pseudonym(id)
+        check(p == ChatEngine.pseudonym(id) && p != ChatEngine.pseudonym(id + "x"), "pseudonym stable and distinct")
+        check(p.hasPrefix("u_") && p.count == 18 && !p.contains("7C1F") && !p.lowercased().contains("7c1f2d9a"), "pseudonym hides the id")
     }
 
     func testSettingsDefaults() {

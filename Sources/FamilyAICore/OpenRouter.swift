@@ -186,10 +186,10 @@ public final class OpenRouter: Sendable {
     }
 
     /// Non-streaming completion returning only the text (used for chat titles).
-    public func complete(key: String, model: String, messages: [[String: Any]], maxTokens: Int = 60) async throws -> String {
-        let req = try request("chat/completions", key: key, json: [
-            "model": model, "messages": messages, "max_tokens": maxTokens,
-        ])
+    public func complete(key: String, model: String, messages: [[String: Any]], maxTokens: Int = 60, user: String? = nil) async throws -> String {
+        var body: [String: Any] = ["model": model, "messages": messages, "max_tokens": maxTokens]
+        if let user { body["user"] = user }
+        let req = try request("chat/completions", key: key, json: body)
         let (data, resp) = try await session.data(for: req)
         let obj = try JSONSerialization.jsonObject(with: checked(data, resp)) as? [String: Any]
         let msg = ((obj?["choices"] as? [[String: Any]])?.first?["message"] as? [String: Any])

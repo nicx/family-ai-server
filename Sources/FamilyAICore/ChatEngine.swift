@@ -1,4 +1,5 @@
 import Foundation
+import CryptoKit
 
 /// Cached OpenRouter model catalog.
 public actor ModelCatalog {
@@ -69,17 +70,29 @@ public final class ChatEngine: Sendable {
 
     // MARK: - Prompt
 
+    /// Erstes Wort des Anzeigenamens (bei leerem Namen unverändert).
+    public static func firstName(_ displayName: String) -> String {
+        displayName.split(whereSeparator: { $0.isWhitespace }).first.map(String.init) ?? displayName
+    }
+
+    /// Pseudonyme, stabile Kennung für OpenRouters `user`-Feld (Missbrauchs-Isolierung), ohne Namen oder interne ID.
+    public static func pseudonym(_ userId: String) -> String {
+        "u_" + SHA256.hash(data: Data(("family-ai:" + userId).utf8)).prefix(8).map { String(format: "%02x", $0) }.joined()
+    }
+
     func systemPrompt(user: User, settings: GlobalSettings, memories: [Store.Memory], hasDocs: Bool, codeDevice: Store.Device?) -> String {
         let df = DateFormatter()
         df.locale = Locale(identifier: settings.language == "en" ? "en_US" : "de_DE")
         df.dateFormat = settings.language == "en" ? "EEEE, MMMM d, yyyy, HH:mm" : "EEEE, d. MMMM yyyy, HH:mm 'Uhr'"
         var lines: [String] = []
-        let family = settings.familyName.isEmpty ? "" : (settings.language == "en" ? " of the \(settings.familyName) family" : " der Familie \(settings.familyName)")
+        // Datenschutz: Familienname und Nachname gehen nie an das Modell – nur der Vorname.
+        let family = settings.familyName.isEmpty ? "" : (settings.language == "en" ? " of the family" : " der Familie")
+        let name = Self.firstName(user.displayName)
         if settings.language == "en" {
-            lines.append("You are \(settings.aiName), the AI assistant\(family). You are talking with \(user.displayName).")
+            lines.append("You are \(settings.aiName), the AI assistant\(family). You are talking with \(name).")
             lines.append("Today is \(df.string(from: Date())). Answer in the language the person writes in. Use Markdown where it helps.")
         } else {
-            lines.append("Du bist \(settings.aiName), die KI\(family). Du sprichst mit \(user.displayName).")
+            lines.append("Du bist \(settings.aiName), die KI\(family). Du sprichst mit \(name).")
             lines.append("Heute ist \(df.string(from: Date())). Antworte in der Sprache, in der die Person schreibt. Nutze Markdown, wo es hilft.")
         }
         if user.role == .child {
@@ -231,7 +244,7 @@ public final class ChatEngine: Sendable {
             var round = 0
             while round < Self.maxRounds {
                 round += 1
-                var body: [String: Any] = ["model": chat.model, "messages": messages]
+                var body: [String: Any] = ["model": chat.model, "messages": messages, "user": Self.pseudonym(user.id)]
                 if !toolDefs.isEmpty { body["tools"] = toolDefs }
                 if imageOut { body["modalities"] = ["image", "text"] }
                 var roundText = ""
@@ -377,7 +390,7 @@ public final class ChatEngine: Sendable {
         let settings = try? await store.settings()
         let model = (settings?.titleModel.isEmpty ?? true) ? chat.model : settings!.titleModel
         let prompt = "Gib diesem Chat einen sehr kurzen Titel (2–5 Wörter, ohne Anführungszeichen, ohne Satzzeichen am Ende) in der Sprache der Nachricht. Nachricht:\n\n\(firstMessage.prefix(1500))"
-        guard let t = try? await router.complete(key: key, model: model, messages: [["role": "user", "content": prompt]], maxTokens: 30) else { return nil }
+        guard let t = try? await router.complete(key: key, model: model, messages: [["role": "user", "content": prompt]], maxTokens: 30, user: Self.pseudonym(user.id)) else { return nil }
         let clean = t.trimmingCharacters(in: .whitespacesAndNewlines).trimmingCharacters(in: CharacterSet(charactersIn: "\"'„“*#"))
         return clean.isEmpty ? nil : String(clean.prefix(80))
     }
