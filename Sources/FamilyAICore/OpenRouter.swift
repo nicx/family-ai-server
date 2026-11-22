@@ -38,6 +38,8 @@ public struct ModelInfo: Codable, Sendable {
     public var supportsTools: Bool
     public var promptPrice: Double?
     public var completionPrice: Double?
+    /// Gültige Stimmen (nur Sprachmodelle, `supported_voices`).
+    public var voices: [String] = []
 }
 
 /// Thin client for the OpenRouter HTTP API (chat, images, speech, transcription,
@@ -306,7 +308,8 @@ public final class OpenRouter: Sendable {
                              outputModalities: (arch["output_modalities"] as? [String]) ?? ["text"],
                              supportsTools: params.contains("tools"),
                              promptPrice: Double((pricing["prompt"] as? String) ?? ""),
-                             completionPrice: Double((pricing["completion"] as? String) ?? ""))
+                             completionPrice: Double((pricing["completion"] as? String) ?? ""),
+                             voices: (m["supported_voices"] as? [String]) ?? [])
         }
     }
 }

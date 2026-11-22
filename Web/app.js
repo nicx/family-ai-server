@@ -1065,6 +1065,18 @@ async function familyTab() {
   lang.value = s.language;
   const opts = (filter) => catalog.filter(filter).map((m) => h("option", { value: m.id }, m.id));
   const sel = (k, filter) => { const e = h("select", { onchange: (ev) => (s[k] = ev.target.value) }, h("option", { value: "" }, "–"), opts(filter)); e.value = s[k]; if (s[k] && e.value !== s[k]) { e.append(h("option", { value: s[k] }, s[k])); e.value = s[k]; } return e; };
+  // Stimme: Auswahl aus den Stimmen des gewählten Sprachmodells; ohne Liste (manche Modelle) bleibt es ein Textfeld.
+  const voiceBox = h("div");
+  const fillVoice = () => {
+    const voices = catalog.find((m) => m.id === s.ttsModel)?.voices || [];
+    if (!voices.length) { voiceBox.replaceChildren(inp("ttsVoice")); return; }
+    if (!voices.includes(s.ttsVoice)) s.ttsVoice = voices.find((v) => v.startsWith(s.language === "en" ? "en-" : "de-")) || voices[0];
+    const e = h("select", { onchange: (ev) => (s.ttsVoice = ev.target.value) }, voices.map((v) => h("option", { value: v }, v)));
+    e.value = s.ttsVoice; voiceBox.replaceChildren(e);
+  };
+  const ttsModelSel = sel("ttsModel", (m) => m.out.includes("speech"));
+  ttsModelSel.addEventListener("change", fillVoice);
+  fillVoice();
   const smtpSec = h("select", { onchange: (e) => (s.smtpSecurity = e.target.value) },
     ["none", "starttls", "tls"].map((v) => h("option", { value: v }, t("smtpSec_" + v))));
   smtpSec.value = s.smtpSecurity || "none";
@@ -1079,8 +1091,8 @@ async function familyTab() {
       sw(t("adminLocal"), s.adminLocalOnly, (e) => (s.adminLocalOnly = e.target.checked))),
     h("div", { class: "grid2" },
       field(t("imageModel"), sel("imageModel", (m) => m.out.includes("image"))),
-      field(t("ttsModel"), sel("ttsModel", (m) => m.out.includes("speech"))),
-      field(t("ttsVoice"), inp("ttsVoice")),
+      field(t("ttsModel"), ttsModelSel),
+      field(t("ttsVoice"), voiceBox),
       field(t("sttModel"), sel("sttModel", (m) => m.out.includes("transcription"))),
       field(t("embedModel"), sel("embedModel", (m) => m.out.includes("embeddings"))),
       field(t("titleModel"), sel("titleModel", (m) => m.out.includes("text"))),

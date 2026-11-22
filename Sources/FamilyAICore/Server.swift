@@ -804,7 +804,8 @@ public final class FamilyServer: Sendable {
             let models = await catalog.all()
             return HTTP.json(models.map { m -> [String: Any] in
                 ["id": m.id, "name": m.name, "in": m.inputModalities, "out": m.outputModalities, "tools": m.supportsTools,
-                 "prompt": m.promptPrice as Any, "completion": m.completionPrice as Any, "context": m.contextLength as Any]
+                 "prompt": m.promptPrice as Any, "completion": m.completionPrice as Any, "context": m.contextLength as Any,
+                 "voices": m.voices]
             })
         }
 
