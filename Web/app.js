@@ -963,8 +963,8 @@ async function editUser(u, listBox) {
     password: h("input", { type: "password", autocomplete: "new-password" }),
     apiKey: h("input", { type: "password", placeholder: u?.hasKey ? "••••••• (" + t("keepKey") + ")" : "sk-or-…" }),
     systemPrompt: h("textarea", { rows: 4 }, p.systemPrompt || ""),
-    defaultModel: h("select", {}, h("option", { value: "" }, "–"), catalog.map((m) => h("option", { value: m.id }, m.name))),
-    escalation: h("select", {}, h("option", { value: "" }, t("escalationFamily")), h("option", { value: "off" }, t("escalationOff")),
+    defaultModel: h("select", {}, h("option", { value: "" }, t("familyDefault")), catalog.map((m) => h("option", { value: m.id }, m.name))),
+    escalation: h("select", {}, h("option", { value: "" }, t("familyDefault")), h("option", { value: "off" }, t("escalationOff")),
       catalog.map((m) => h("option", { value: m.id }, m.name))),
   };
   f.role.value = u?.role || "child";
