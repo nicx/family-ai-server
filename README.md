@@ -29,7 +29,7 @@ Established self-hosted chat front ends such as [Open WebUI](https://github.com/
 
 - **One account per person** – roles admin, parent, child; only the admin creates accounts.
 - **Chat** with streaming, Markdown, code, history and search.
-- **Models, simply managed** – one list of models for everyone, a family default model, and extra models per person on top. People with only the default model get no model picker at all (ideal for children); admins see every model. A fresh install starts with a small list (Claude Haiku/Sonnet, GPT Luna/Sol).
+- **Models, simply managed** – a family default model and a family escalation model, plus extra models per person on top. People with only the default model get no model picker at all (ideal for children); admins see every model.
 - **“Stronger answer” button** – re-answers one question with a stronger model (family-wide setting, per person: family default, off, or a specific model) without changing the chat model.
 - **Create images**, **understand images & files** (photo of a worksheet, PDF, Word, text).
 - **Voice**: dictation, read-aloud and hands-free voice chat.

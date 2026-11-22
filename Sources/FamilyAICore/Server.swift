@@ -130,10 +130,10 @@ public final class FamilyServer: Sendable {
 
     func allowedModels(for user: User) async -> [ModelInfo] {
         let models = await catalog.chatModels()
-        // Admins see every model. Everyone else: the family list + personal extras + the default models.
+        // Admins see every model. Everyone else: the default models + personal extras.
         if user.role == .admin { return models }
         let settings = (try? await store.settings()) ?? GlobalSettings()
-        let ids = Set(settings.catalog + user.profile.allowedModels + [settings.defaultModel, user.profile.defaultModel ?? ""])
+        let ids = Set(user.profile.allowedModels + [settings.defaultModel, user.profile.defaultModel ?? ""])
         return models.filter { ids.contains($0.id) }
     }
 

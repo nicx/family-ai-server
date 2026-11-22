@@ -38,7 +38,7 @@ python3 Scripts/make-icons.py                # Icons aus Resources/AppIcon.svg n
 - App läuft produktiv aus `dist/` – `make-app.sh` bricht ab, wenn sie läuft. Nicht aus der Entwicklungsumgebung starten, sondern selbst; vor einem Build beenden.
 - Schlüssel nur über `/usr/bin/security` (sonst Schlüsselbund-Abfrage nach jedem Rebuild).
 - Alle schreibenden API-Aufrufe brauchen Header `X-Family-AI: 1` (CSRF). Runner-Endpunkte sind ausgenommen (Bearer-Token).
-- Modell-Sichtbarkeit (`Server.allowedModels`): Admin = alle; sonst Familienliste (`GlobalSettings.catalog`, leer = nur Standardmodell) + Profil-`allowedModels` (ZUSÄTZLICH, nicht ersetzend) + Standardmodelle. Kein eigener Picker-Schalter: Picker erscheint ab ≥2 Modellen. Eskalationsmodell (`escalationModel`, Familie + Profil: ""=Familie, "off", Modell-ID) wird per `POST chats/:id/regenerate {escalate:true}` einmalig genutzt und von der Liste nicht geprüft.
+- Modell-Sichtbarkeit (`Server.allowedModels`): Admin = alle; sonst Standardmodelle (Familie/Person) + Profil-`allowedModels` (ZUSÄTZLICH). Keine Familienliste und kein Picker-Schalter: Picker erscheint ab ≥2 Modellen. Eskalationsmodell (`escalationModel`, Familie + Profil: ""=Familie, "off", Modell-ID) wird per `POST chats/:id/regenerate {escalate:true}` einmalig genutzt und von der Liste nicht geprüft.
 - Embeddings: Chunks speichern ihr Modell (`chunks.model`); bei Modellwechsel werden abweichende Dokumente in `Documents.search` im Hintergrund neu indiziert, bis dahin greift die Stichwortsuche.
 - OpenRouter-Guardrails der Personen-Schlüssel müssen Bild-, TTS-, STT- und Embedding-Modell erlauben.
 - Mail über `/usr/bin/curl` (Konfig-Datei, Passwort nie auf der Kommandozeile); SMTP-Passwort im KeyStore unter `smtp-password`.

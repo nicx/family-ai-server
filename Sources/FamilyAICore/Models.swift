@@ -6,7 +6,7 @@ public enum Role: String, Codable, Sendable, CaseIterable {
 
 /// Per-person settings, set by the admin only.
 public struct Profile: Codable, Sendable, Equatable {
-    /// Additional models for this person, on top of the family list (GlobalSettings.catalog).
+    /// Additional models for this person, on top of the default and escalation models.
     public var allowedModels: [String] = []
     /// Model preselected for new chats.
     public var defaultModel: String?
@@ -133,21 +133,11 @@ public struct GlobalSettings: Codable, Sendable, Equatable {
     public var smtpUser: String = ""
     /// Public origin, e.g. https://ai.example.org — needed for passkeys.
     public var publicURL: String = ""
-    /// Models everyone may pick (plus the default models and personal extras). Empty = only the default model.
-    public var catalog: [String] = GlobalSettings.starterCatalog
     public var webSearchMaxResults: Int = 5
     /// Preselected model for people without their own default.
     public var defaultModel: String = "anthropic/claude-haiku-5.5"
     /// Model for "answer with a stronger model" (empty = feature off). Overridable per person.
     public var escalationModel: String = "anthropic/claude-sonnet-5.5"
-
-    /// Small, cheap-to-good starter set for a fresh install; the admin extends it.
-    public static let starterCatalog = [
-        "anthropic/claude-haiku-5.5",
-        "anthropic/claude-sonnet-5.5",
-        "openai/gpt-6-luna",
-        "openai/gpt-6.1-sol",
-    ]
 
     public init() {}
 
@@ -176,7 +166,6 @@ public struct GlobalSettings: Codable, Sendable, Equatable {
         smtpSecurity = try v(.smtpSecurity, d.smtpSecurity)
         smtpUser = try v(.smtpUser, d.smtpUser)
         publicURL = try v(.publicURL, d.publicURL)
-        catalog = try v(.catalog, d.catalog)
         webSearchMaxResults = try v(.webSearchMaxResults, d.webSearchMaxResults)
         defaultModel = try v(.defaultModel, d.defaultModel)
         escalationModel = try v(.escalationModel, d.escalationModel)

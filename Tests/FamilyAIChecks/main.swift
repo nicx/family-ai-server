@@ -19,7 +19,7 @@ struct FamilyAICoreTests {
     static func runAll() async {
         let t = FamilyAICoreTests()
         t.testChunking(); t.testCosine(); t.testPrivateAddresses(); t.testPasswords(); t.testSpeakable(); t.testUsernames(); t.testDataURL()
-        t.testMailCurlConfig(); t.testStarterCatalog()
+        t.testMailCurlConfig(); t.testSettingsDefaults()
         do { try await t.testStoreRoundtrip() } catch { check(false, "Store: \(error)") }
         await t.testRunnerHubRoundtrip()
         print("\(checks) Prüfungen, \(failures) Fehler")
@@ -122,13 +122,12 @@ struct FamilyAICoreTests {
         check(msg.contains("Zeile 1\r\nZeile 2\r\n"), "CRLF body")
     }
 
-    func testStarterCatalog() {
+    func testSettingsDefaults() {
         let s = GlobalSettings()
-        check(s.catalog == GlobalSettings.starterCatalog && s.catalog.count == 4, "starter catalog")
-        check(s.catalog.contains(s.defaultModel), "default model is in catalog")
-        // Older settings without the new keys decode with the defaults.
+        check(!s.defaultModel.isEmpty && !s.escalationModel.isEmpty, "default and escalation model set")
+        // Older settings (incl. the removed "catalog" key) decode with the defaults.
         let old = try! JSONDecoder().decode(GlobalSettings.self, from: Data(#"{"aiName":"Nova","catalog":[]}"#.utf8))
-        check(old.catalog.isEmpty && old.smtpSecurity == "none", "explicit empty catalog stays empty")
+        check(old.aiName == "Nova" && old.smtpSecurity == "none" && old.defaultModel == s.defaultModel, "old settings decode")
     }
 
     func testDataURL() {

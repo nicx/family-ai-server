@@ -1015,7 +1015,6 @@ async function familyTab() {
   lang.value = s.language;
   const opts = (filter) => catalog.filter(filter).map((m) => h("option", { value: m.id }, m.id));
   const sel = (k, filter) => { const e = h("select", { onchange: (ev) => (s[k] = ev.target.value) }, h("option", { value: "" }, "–"), opts(filter)); e.value = s[k]; if (s[k] && e.value !== s[k]) { e.append(h("option", { value: s[k] }, s[k])); e.value = s[k]; } return e; };
-  const catPicker = modelPicker(catalog.filter((m) => m.out.includes("text")), s.catalog);
   const smtpSec = h("select", { onchange: (e) => (s.smtpSecurity = e.target.value) },
     ["none", "starttls", "tls"].map((v) => h("option", { value: v }, t("smtpSec_" + v))));
   smtpSec.value = s.smtpSecurity || "none";
@@ -1039,7 +1038,6 @@ async function familyTab() {
       field(t("escalationModel"), sel("escalationModel", (m) => m.out.includes("text"))),
       field(t("retention"), inp("retentionDays", "number")),
       field(t("webResults"), inp("webSearchMaxResults", "number"))),
-    h("h3", {}, t("catalog")), h("p", { class: "hint" }, t("catalogHint")), catPicker.el,
     h("h3", { style: "margin-top:16px" }, t("mail")),
     h("div", { class: "card" }, sw(t("notifyBudget"), s.notifyOnBudget, (e) => (s.notifyOnBudget = e.target.checked))),
     h("div", { class: "grid2" }, field(t("threshold"), inp("budgetThreshold", "number")), field(t("mailTo"), inp("mailRecipient", "email")),
@@ -1057,7 +1055,6 @@ async function familyTab() {
       h("button", { class: "btn primary", onclick: async () => {
         err.textContent = "";
         try {
-          s.catalog = catPicker.value();
           const body = { ...s };
           if (smtpPw.value) body.smtpPassword = smtpPw.value;
           else if (!s.smtpUser) body.smtpPassword = "";
