@@ -116,6 +116,7 @@ label.field > span { display: block; font-size: 13px; color: var(--muted); margi
 .chat-item:hover { background: var(--surface-2); }
 .chat-item.active { background: var(--user-bubble); }
 .chat-item .title { flex: 1; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.chat-item { -webkit-touch-callout: none; -webkit-user-select: none; user-select: none; }
 .chat-item .badge { font-size: 11px; color: var(--accent); }
 .sidebar-foot { border-top: 1px solid var(--border); padding: 8px; display: flex; flex-direction: column; gap: 2px; }
 .nav-item { display: flex; align-items: center; gap: 10px; padding: 9px 10px; border-radius: 10px; cursor: pointer; font-size: 14px; border: none; background: none; text-align: left; width: 100%; }
@@ -275,3 +276,8 @@ label.field > span { display: block; font-size: 13px; color: var(--muted); margi
   .modal { max-height: 100%; border-radius: 16px; }
   .overlay { padding: 8px; }
 }
+
+.ctx-menu { position: fixed; z-index: 60; min-width: 170px; padding: 4px; background: var(--surface); border: 1px solid var(--border); border-radius: 12px; box-shadow: var(--shadow); display: flex; flex-direction: column; }
+.ctx-menu button { display: flex; align-items: center; gap: 10px; padding: 9px 10px; border: none; background: none; border-radius: 8px; font-size: 14px; color: var(--text); cursor: pointer; text-align: left; }
+.ctx-menu button:hover { background: var(--surface-2); }
+.ctx-menu button.danger { color: var(--danger, #d33); }

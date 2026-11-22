@@ -28,7 +28,7 @@ Established self-hosted chat front ends such as [Open WebUI](https://github.com/
 ## Features
 
 - **One account per person** – roles admin, parent, child; only the admin creates accounts.
-- **Chat** with streaming, Markdown, code, history and search.
+- **Chat** with streaming, Markdown, code, history and search; rename or delete chats via right-click (long-press on touch).
 - **Models, simply managed** – a family default model and a family escalation model, plus extra models per person on top. People with only the default model get no model picker at all (ideal for children); admins see every model.
 - **“Stronger answer” button** – re-answers one question with a stronger model (family-wide setting, per person: family default, off, or a specific model) without changing the chat model.
 - **Create images**, **understand images & files** (photo of a worksheet, PDF, Word, text).

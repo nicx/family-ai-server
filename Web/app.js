@@ -287,10 +287,60 @@ function renderChatList() {
   }
   els.chatList.replaceChildren(...Object.entries(groups).filter(([, v]) => v.length).flatMap(([title, list]) => [
     h("div", { class: "group-title" }, title),
-    list.map((c) => h("a", { class: "chat-item" + (S.chat && S.chat.id === c.id ? " active" : ""), href: `#/c/${c.id}`, onclick: closeDrawer },
+    list.map((c) => h("a", { class: "chat-item" + (S.chat && S.chat.id === c.id ? " active" : ""), href: `#/c/${c.id}`, onclick: closeDrawer, ...chatMenuEvents(c) },
       c.mode === "code" ? h("span", { class: "badge", html: I.code, style: "display:inline-flex;width:16px" }) : null,
       h("span", { class: "title" }, c.title))),
   ].flat()));
+}
+
+// Rechtsklick (Mac/PC) bzw. langes Drücken (Touch) auf einen Chat: Umbenennen / Löschen.
+function chatMenuEvents(c) {
+  let timer = null, fired = false;
+  const cancel = () => clearTimeout(timer);
+  return {
+    oncontextmenu: (e) => { e.preventDefault(); showChatMenu(c, e.clientX, e.clientY); },
+    ontouchstart: (e) => {
+      fired = false; const t0 = e.touches[0];
+      timer = setTimeout(() => { fired = true; showChatMenu(c, t0.clientX, t0.clientY); }, 550);
+    },
+    ontouchmove: cancel, ontouchend: (e) => { cancel(); if (fired) e.preventDefault(); }, ontouchcancel: cancel,
+  };
+}
+
+function showChatMenu(c, x, y) {
+  document.querySelector(".ctx-menu")?.remove();
+  const close = () => { menu.remove(); removeEventListener("pointerdown", away, true); removeEventListener("keydown", esc, true); removeEventListener("resize", close); };
+  const away = (e) => { if (!menu.contains(e.target)) close(); };
+  const esc = (e) => { if (e.key === "Escape") close(); };
+  const menu = h("div", { class: "ctx-menu", role: "menu" },
+    h("button", { role: "menuitem", onclick: () => { close(); renameChat(c); } }, icon("pencil"), t("rename")),
+    h("button", { role: "menuitem", class: "danger", onclick: () => { close(); deleteChat(c); } }, icon("trash"), t("delete")));
+  document.body.append(menu);
+  const r = menu.getBoundingClientRect();
+  menu.style.left = Math.max(8, Math.min(x, innerWidth - r.width - 8)) + "px";
+  menu.style.top = Math.max(8, Math.min(y, innerHeight - r.height - 8)) + "px";
+  addEventListener("pointerdown", away, true); addEventListener("keydown", esc, true); addEventListener("resize", close);
+}
+
+async function renameChat(c) {
+  const title = prompt(t("rename"), c.title)?.trim();
+  if (!title || title === c.title) return;
+  try {
+    const updated = await api("PATCH", `chats/${c.id}`, { title });
+    c.title = updated.title;
+    if (S.chat?.id === c.id) { S.chat.title = updated.title; els.title.textContent = updated.title; }
+    renderChatList();
+  } catch (x) { alert(x.message); }
+}
+
+async function deleteChat(c) {
+  if (!confirm(t("confirmDelete"))) return;
+  try {
+    if (S.chat?.id === c.id && S.streaming) S.abort?.abort();
+    await api("DELETE", `chats/${c.id}`);
+    S.chats = S.chats.filter((x) => x.id !== c.id);
+    if (S.chat?.id === c.id) { location.hash = "#/"; showEmpty(); } else renderChatList();
+  } catch (x) { alert(x.message); }
 }
 
 async function loadKids() {

@@ -28,7 +28,7 @@ Etablierte selbst gehostete Chat-Oberflächen wie [Open WebUI](https://github.co
 ## Funktionen
 
 - **Ein Konto pro Person** – Rollen Admin, Elternteil, Kind; Konten legt nur der Admin an.
-- **Chat** mit Streaming, Markdown, Code, Verlauf und Suche.
+- **Chat** mit Streaming, Markdown, Code, Verlauf und Suche; Chats per Rechtsklick (am Handy langes Drücken) umbenennen oder löschen.
 - **Modelle einfach verwaltet** – ein Standardmodell und ein Eskalationsmodell der Familie, dazu pro Person zusätzliche Modelle. Wer nur das Standardmodell hat, bekommt gar keine Modellauswahl (ideal für Kinder); Admins sehen alle Modelle.
 - **Knopf „Stärker antworten“** – beantwortet eine Frage einmal mit einem stärkeren Modell (Familien-Vorgabe, pro Person: Familienstandard, aus oder ein bestimmtes Modell), ohne das Chat-Modell zu ändern.
 - **Bilder erzeugen**, **Bilder & Dateien verstehen** (Foto vom Arbeitsblatt, PDF, Word, Text).
