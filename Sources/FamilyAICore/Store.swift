@@ -104,6 +104,10 @@ public final class Store: Sendable {
         CREATE TABLE IF NOT EXISTS settings (key TEXT PRIMARY KEY, value TEXT NOT NULL);
         """)
         try await db.execute("INSERT OR IGNORE INTO meta(key, value) VALUES('schema', '1')")
+        // Spalte für das Embedding-Modell nachrüsten (Vektoren verschiedener Modelle sind nicht vergleichbar).
+        if (try? await db.queryOne("SELECT model FROM chunks LIMIT 1")) == nil {
+            _ = try? await db.execute("ALTER TABLE chunks ADD COLUMN model TEXT")
+        }
     }
 
     // MARK: - Settings
@@ -349,30 +353,30 @@ public final class Store: Sendable {
 
     // MARK: - Document chunks
 
-    public func replaceChunks(fileId: String, userId: String, chunks: [(String, [Float])]) async throws {
+    public func replaceChunks(fileId: String, userId: String, model: String, chunks: [(String, [Float])]) async throws {
         var stmts: [(String, [SQLValue])] = [("DELETE FROM chunks WHERE file_id=?", [.text(fileId)])]
         for (i, c) in chunks.enumerated() {
             let blob = c.1.withUnsafeBufferPointer { Data(buffer: $0) }
-            stmts.append(("INSERT INTO chunks(id,file_id,user_id,idx,text,embedding) VALUES(?,?,?,?,?,?)",
-                          [.text(newID()), .text(fileId), .text(userId), .int(Int64(i)), .text(c.0), .blob(blob)]))
+            stmts.append(("INSERT INTO chunks(id,file_id,user_id,idx,text,embedding,model) VALUES(?,?,?,?,?,?,?)",
+                          [.text(newID()), .text(fileId), .text(userId), .int(Int64(i)), .text(c.0), .blob(blob), .text(model)]))
         }
         stmts.append(("UPDATE files SET indexed=1 WHERE id=?", [.text(fileId)]))
         try await db.transaction(stmts)
     }
 
-    public func chunks(userId: String, fileIds: [String]?) async throws -> [(fileId: String, text: String, vector: [Float])] {
+    public func chunks(userId: String, fileIds: [String]?) async throws -> [(fileId: String, text: String, vector: [Float], model: String)] {
         var rows: [Row]
         if let fileIds, !fileIds.isEmpty {
             let qs = Array(repeating: "?", count: fileIds.count).joined(separator: ",")
-            rows = try await db.query("SELECT file_id, text, embedding FROM chunks WHERE user_id=? AND file_id IN (\(qs))",
+            rows = try await db.query("SELECT file_id, text, embedding, model FROM chunks WHERE user_id=? AND file_id IN (\(qs))",
                                       [.text(userId)] + fileIds.map { .text($0) })
         } else {
-            rows = try await db.query("SELECT file_id, text, embedding FROM chunks WHERE user_id=?", [.text(userId)])
+            rows = try await db.query("SELECT file_id, text, embedding, model FROM chunks WHERE user_id=?", [.text(userId)])
         }
         return rows.map { r in
             let data = r["embedding"]?.data ?? Data()
             let vec: [Float] = data.withUnsafeBytes { Array($0.bindMemory(to: Float.self)) }
-            return (r["file_id"]?.string ?? "", r["text"]?.string ?? "", vec)
+            return (r["file_id"]?.string ?? "", r["text"]?.string ?? "", vec, r["model"]?.string ?? "")
         }
     }
 

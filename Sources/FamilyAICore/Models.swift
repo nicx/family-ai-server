@@ -110,7 +110,7 @@ public struct GlobalSettings: Codable, Sendable, Equatable {
     public var ttsModel: String = "microsoft/mai-voice-2.1-flash"
     public var ttsVoice: String = "de-DE-Mia:MAI-Voice-2.1-Flash"
     public var sttModel: String = "openai/whisper-large-v3-turbo"
-    public var embedModel: String = "nvidia/nemotron-3.5-embed-1b:free"
+    public var embedModel: String = "google/gemini-embedding-2"
     public var titleModel: String = ""
     /// Delete chats older than N days; 0 = never.
     public var retentionDays: Int = 0

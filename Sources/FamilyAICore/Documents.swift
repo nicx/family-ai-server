@@ -77,7 +77,7 @@ public enum Documents {
             for (t, v) in zip(batch, vectors) { result.append((t, v)) }
             i += 64
         }
-        try await store.replaceChunks(fileId: fileId, userId: userId, chunks: result)
+        try await store.replaceChunks(fileId: fileId, userId: userId, model: model, chunks: result)
     }
 
     /// Top matching chunks for a query: semantic search over embedded chunks, plus a
@@ -85,7 +85,19 @@ public enum Documents {
     /// embedding model is not available for the key).
     public static func search(query: String, userId: String, fileIds: [String]?, store: Store, router: OpenRouter, key: String, model: String, limit: Int = 6) async throws -> [(fileId: String, text: String, score: Float)] {
         var results: [(fileId: String, text: String, score: Float)] = []
-        let chunks = try await store.chunks(userId: userId, fileIds: fileIds)
+        let all = try await store.chunks(userId: userId, fileIds: fileIds)
+        let chunks = all.filter { $0.model == model }
+        // Nach einem Modellwechsel die betroffenen Dokumente im Hintergrund neu einlesen;
+        // bis dahin springt die Stichwortsuche ein.
+        let stale = Set(all.filter { $0.model != model }.map(\.fileId))
+        if !stale.isEmpty {
+            Task.detached {
+                for id in stale {
+                    guard let text = try? await store.fileText(id: id) else { continue }
+                    try? await index(fileId: id, userId: userId, text: text, store: store, router: router, key: key, model: model)
+                }
+            }
+        }
         if !chunks.isEmpty, let q = try? await router.embed(key: key, model: model, inputs: [query], inputType: "search_query").first {
             results = chunks.map { ($0.fileId, $0.text, cosine(q, $0.vector)) }.sorted { $0.2 > $1.2 }.prefix(limit).map { $0 }
         }
