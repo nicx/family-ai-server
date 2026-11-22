@@ -277,9 +277,12 @@ public final class OpenRouter: Sendable {
                          label: d["label"] as? String)
     }
 
-    /// Public model catalog (no key needed).
+    /// Public model catalog (no key needed). Ohne `output_modalities=all` liefert OpenRouter nur Modelle mit Text-Ausgabe –
+    /// reine Bild-, Sprach- und Transkriptionsmodelle (z. B. MAI-Image, Whisper) fehlten dann in den Auswahllisten.
     public func models() async throws -> [ModelInfo] {
-        var r = URLRequest(url: baseURL.appendingPathComponent("models"))
+        var comps = URLComponents(url: baseURL.appendingPathComponent("models"), resolvingAgainstBaseURL: false)!
+        comps.queryItems = [URLQueryItem(name: "output_modalities", value: "all")]
+        var r = URLRequest(url: comps.url!)
         r.setValue(appTitle, forHTTPHeaderField: "X-Title")
         let (data, resp) = try await session.data(for: r)
         let obj = try JSONSerialization.jsonObject(with: checked(data, resp)) as? [String: Any]
