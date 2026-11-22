@@ -133,7 +133,9 @@ public final class ChatEngine: Sendable {
     func tools(user: User, settings: GlobalSettings, hasDocs: Bool, codeDevice: Store.Device?, modelSupportsTools: Bool) -> [[String: Any]] {
         var t: [[String: Any]] = []
         if user.profile.webSearch {
-            t.append(["type": "openrouter:web_search", "parameters": ["max_results": settings.webSearchMaxResults]])
+            // Datenschutz: feste Engine "native" = Suche des Modellanbieters selbst (kein zusätzlicher Drittanbieter wie Exa);
+            // Modelle ohne eingebaute Suche weichen laut OpenRouter auf Exa aus. Firecrawl scheitert an der ZDR-Guardrail.
+            t.append(["type": "openrouter:web_search", "parameters": ["engine": "native", "max_results": settings.webSearchMaxResults]])
         }
         guard modelSupportsTools else { return t }
         func fn(_ name: String, _ desc: String, _ props: [String: Any], _ required: [String]) -> [String: Any] {
