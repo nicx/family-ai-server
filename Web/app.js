@@ -30,6 +30,7 @@ const I = {
   wave: svg('<path d="M3 12h2M7 8v8M11 5v14M15 8v8M19 11v2"/>'),
   speaker: svg('<path d="M11 5L6 9H3v6h3l5 4V5z"/><path d="M15.5 8.5a5 5 0 010 7M18.5 5.5a9 9 0 010 13"/>'),
   copy: svg('<rect x="9" y="9" width="11" height="11" rx="2"/><path d="M5 15V5a2 2 0 012-2h10"/>'),
+  spark: svg('<path d="M12 3l1.8 5.2L19 10l-5.2 1.8L12 17l-1.8-5.2L5 10l5.2-1.8zM19 16l.7 2 2 .7-2 .7-.7 2-.7-2-2-.7 2-.7z"/>'),
   refresh: svg('<path d="M21 12a9 9 0 11-3-6.7L21 8M21 3v5h-5"/>'),
   menu: svg('<path d="M4 6h16M4 12h16M4 18h16"/>'),
   x: svg('<path d="M18 6L6 18M6 6l12 12"/>'),
@@ -246,6 +247,7 @@ async function startApp() {
 
   const m = await api("GET", "models");
   S.models = m.models; S.defaultModel = m.default;
+  S.modelChoice = m.choice !== false; S.escalation = !!m.escalation;
   fillModelSelect(S.defaultModel);
   if (p.code) S.devices = await api("GET", "devices").catch(() => []);
   if (["parent", "admin"].includes(S.me.user.role)) loadKids();
@@ -257,7 +259,7 @@ async function startApp() {
 function fillModelSelect(selected) {
   els.modelSelect.replaceChildren(...S.models.map((m) => h("option", { value: m.id }, m.name.replace(/^[^:]+:\s*/, ""))));
   if (selected) els.modelSelect.value = selected;
-  els.modelSelect.classList.toggle("hidden", S.models.length < 2);
+  els.modelSelect.classList.toggle("hidden", S.models.length < 2 || !S.modelChoice);
 }
 
 function openDrawer() { els.app.classList.add("drawer-open"); }
@@ -347,7 +349,7 @@ async function openChat(id) {
   if (!S.models.some((m) => m.id === S.chat.model)) els.modelSelect.append(h("option", { value: S.chat.model }, S.chat.model));
   els.modelSelect.value = S.chat.model;
   els.modelSelect.disabled = S.readOnly;
-  els.modelSelect.classList.toggle("hidden", S.models.length < 2 && !S.readOnly);
+  els.modelSelect.classList.toggle("hidden", !S.modelChoice || (S.models.length < 2 && !S.readOnly));
   renderMessages();
   renderChatList();
 }
@@ -416,7 +418,8 @@ function messageEl(m, isLast) {
   const actions = S.readOnly ? null : h("div", { class: "msg-actions" + (isLast ? " show" : "") },
     h("button", { class: "icon-btn", title: t("copy"), html: I.copy, onclick: () => { navigator.clipboard.writeText(m.content); toast(t("copied")); } }),
     S.me.user.profile.voice ? h("button", { class: "icon-btn", title: t("readAloud"), html: I.speaker, onclick: (e) => speak(m.content, e.currentTarget) }) : null,
-    isLast ? h("button", { class: "icon-btn", title: t("regenerate"), html: I.refresh, onclick: regenerate }) : null,
+    isLast ? h("button", { class: "icon-btn", title: t("regenerate"), html: I.refresh, onclick: () => regenerate() }) : null,
+    isLast && S.escalation ? h("button", { class: "icon-btn escalate", title: t("escalateHint"), onclick: () => regenerate(true) }, h("span", { html: I.spark }), t("escalate")) : null,
     meta.cost ? h("span", { class: "meta-line", style: "margin-left:6px;align-self:center" }, `${fmtMoney(meta.cost)} $`) : null);
   return h("div", { class: "msg assistant" },
     h("img", { class: "ai-avatar", src: "/icon-192.png", alt: "" }),
@@ -459,11 +462,11 @@ async function send(text, { voice = false } = {}) {
   return stream(`chats/${chat.id}/messages`, { content: text, attachments }, { voice });
 }
 
-async function regenerate() {
+async function regenerate(escalate = false) {
   if (!S.chat || S.streaming) return;
   const last = S.messages[S.messages.length - 1];
   if (last?.role === "assistant") { S.messages.pop(); els.inner.lastElementChild?.remove(); }
-  return stream(`chats/${S.chat.id}/regenerate`, {});
+  return stream(`chats/${S.chat.id}/regenerate`, escalate ? { escalate: true } : {});
 }
 
 async function stream(path, body, { voice = false } = {}) {
@@ -961,13 +964,17 @@ async function editUser(u, listBox) {
     apiKey: h("input", { type: "password", placeholder: u?.hasKey ? "••••••• (" + t("keepKey") + ")" : "sk-or-…" }),
     systemPrompt: h("textarea", { rows: 4 }, p.systemPrompt || ""),
     defaultModel: h("select", {}, h("option", { value: "" }, "–"), catalog.map((m) => h("option", { value: m.id }, m.name))),
+    escalation: h("select", {}, h("option", { value: "" }, t("escalationFamily")), h("option", { value: "off" }, t("escalationOff")),
+      catalog.map((m) => h("option", { value: m.id }, m.name))),
   };
   f.role.value = u?.role || "child";
   f.defaultModel.value = p.defaultModel || "";
+  if (p.escalationModel && p.escalationModel !== "off" && !catalog.some((m) => m.id === p.escalationModel)) f.escalation.append(h("option", { value: p.escalationModel }, p.escalationModel));
+  f.escalation.value = p.escalationModel || "";
   const picker = modelPicker(catalog, p.allowedModels);
-  const feats = { images: p.images, voice: p.voice, webSearch: p.webSearch, memory: p.memory, documents: p.documents, code: p.code, parentalView: p.parentalView };
+  const feats = { images: p.images, voice: p.voice, webSearch: p.webSearch, memory: p.memory, documents: p.documents, code: p.code, parentalView: p.parentalView, modelChoice: p.modelChoice !== false };
   const featBox = h("div", { class: "card" },
-    [["images", "fImages"], ["voice", "fVoice"], ["webSearch", "fWeb"], ["memory", "fMemory"], ["documents", "fDocs"], ["code", "fCode"], ["parentalView", "parentalView"]]
+    [["images", "fImages"], ["voice", "fVoice"], ["webSearch", "fWeb"], ["memory", "fMemory"], ["documents", "fDocs"], ["code", "fCode"], ["parentalView", "parentalView"], ["modelChoice", "modelChoice"]]
       .map(([k, label]) => sw(t(label), feats[k], (e) => (feats[k] = e.target.checked))));
   const err = h("div", { class: "error-text" });
   const ov = overlay(isNew ? t("addPerson") : u.displayName, h("div", {},
@@ -976,7 +983,7 @@ async function editUser(u, listBox) {
     field(t("apiKey"), f.apiKey),
     h("h3", {}, t("features")), featBox,
     h("h3", { style: "margin-top:16px" }, t("allowedModels")), h("p", { class: "hint" }, t("allowedModelsHint")), picker.el,
-    field(t("defaultModel"), f.defaultModel), field(t("systemPrompt"), f.systemPrompt),
+    field(t("defaultModel"), f.defaultModel), field(t("escalationModel"), f.escalation), h("p", { class: "hint" }, t("escalationHint")), field(t("systemPrompt"), f.systemPrompt),
     err,
     h("div", { class: "row", style: "margin-top:8px" },
       !isNew ? h("button", { class: "btn danger", onclick: async () => {
@@ -989,7 +996,7 @@ async function editUser(u, listBox) {
       h("button", { class: "btn primary", onclick: async () => {
         err.textContent = "";
         const profile = { ...p, images: feats.images, voice: feats.voice, webSearch: feats.webSearch, memory: feats.memory, documents: feats.documents,
-          code: feats.code, parentalView: feats.parentalView, allowedModels: picker.value(), defaultModel: f.defaultModel.value || null, systemPrompt: f.systemPrompt.value };
+          code: feats.code, parentalView: feats.parentalView, modelChoice: feats.modelChoice, escalationModel: f.escalation.value, allowedModels: picker.value(), defaultModel: f.defaultModel.value || null, systemPrompt: f.systemPrompt.value };
         const body = { displayName: f.displayName.value, role: f.role.value, profile };
         if (f.password.value) body.password = f.password.value;
         if (f.apiKey.value.trim()) body.apiKey = f.apiKey.value.trim();
@@ -1031,6 +1038,7 @@ async function familyTab() {
       field(t("embedModel"), inp("embedModel")),
       field(t("titleModel"), sel("titleModel", (m) => m.out.includes("text"))),
       field(t("defaultModel"), sel("defaultModel", (m) => m.out.includes("text"))),
+      field(t("escalationModel"), sel("escalationModel", (m) => m.out.includes("text"))),
       field(t("retention"), inp("retentionDays", "number")),
       field(t("webResults"), inp("webSearchMaxResults", "number"))),
     h("h3", {}, t("catalog")), h("p", { class: "hint" }, t("catalogHint")), catPicker.el,

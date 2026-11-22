@@ -136,6 +136,15 @@ public final class FamilyServer: Sendable {
         return models
     }
 
+    /// Model for the one-off "answer with a stronger model" action, nil if disabled for this person.
+    func escalationModel(for user: User) async -> String? {
+        let p = user.profile.escalationModel
+        if p == "off" { return nil }
+        if !p.isEmpty { return p }
+        let g = (try? await store.settings())?.escalationModel ?? ""
+        return g.isEmpty ? nil : g
+    }
+
     func defaultModel(for user: User, models: [ModelInfo]) async -> String? {
         let global = (try? await store.settings())?.defaultModel ?? ""
         for candidate in [user.profile.defaultModel ?? "", global] where !candidate.isEmpty {
@@ -309,7 +318,9 @@ public final class FamilyServer: Sendable {
             let def = await defaultModel(for: s.user, models: models)
             return HTTP.json(["models": models.map { ["id": $0.id, "name": $0.name, "vision": $0.inputModalities.contains("image"),
                                                       "tools": $0.supportsTools, "imageOut": $0.outputModalities.contains("image")] },
-                              "default": def as Any])
+                              "default": def as Any,
+                              "choice": s.user.profile.modelChoice,
+                              "escalation": await escalationModel(for: s.user) != nil])
         }
 
         api.get("memories") { [self] request, _ in
@@ -380,7 +391,7 @@ public final class FamilyServer: Sendable {
             let o = try await HTTP.object(request)
             let models = await allowedModels(for: s.user)
             var model = (o["model"] as? String) ?? ""
-            if !models.contains(where: { $0.id == model }) {
+            if !s.user.profile.modelChoice || !models.contains(where: { $0.id == model }) {
                 model = await defaultModel(for: s.user, models: models) ?? ""
             }
             guard !model.isEmpty else { throw APIError.bad("Kein Modell freigegeben") }
@@ -412,6 +423,7 @@ public final class FamilyServer: Sendable {
             let o = try await HTTP.object(request)
             if let t = o["title"] as? String, !t.trimmingCharacters(in: .whitespaces).isEmpty { chat.title = String(t.prefix(120)) }
             if let m = o["model"] as? String {
+                guard s.user.profile.modelChoice else { throw APIError.forbidden }
                 guard await allowedModels(for: s.user).contains(where: { $0.id == m }) else { throw APIError.forbidden }
                 chat.model = m
             }
@@ -454,7 +466,14 @@ public final class FamilyServer: Sendable {
                 try await store.deleteMessages(chatId: chat.id, after: last.createdAt)
             }
             guard try await store.messages(chatId: chat.id).last?.role == "user" else { throw APIError.bad("Nichts zu wiederholen") }
-            return streamAnswer(user: s.user, chat: chat, userMessage: nil, makeTitle: false)
+            // Einmalig mit dem Eskalationsmodell antworten; das Chat-Modell bleibt unverändert.
+            var answerChat = chat
+            let o = (try? await HTTP.object(request)) ?? [:]
+            if (o["escalate"] as? Bool) == true {
+                guard let esc = await escalationModel(for: s.user) else { throw APIError.forbidden }
+                answerChat.model = esc
+            }
+            return streamAnswer(user: s.user, chat: answerChat, userMessage: nil, makeTitle: false)
         }
     }
 

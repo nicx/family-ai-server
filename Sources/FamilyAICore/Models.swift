@@ -20,6 +20,10 @@ public struct Profile: Codable, Sendable, Equatable {
     public var code: Bool = false
     /// Children only: parents may read this child's chats.
     public var parentalView: Bool = false
+    /// Show the model picker. Off = the person always gets the default model (plus escalation).
+    public var modelChoice: Bool = true
+    /// "" = family default, "off" = no escalation button, otherwise a model id.
+    public var escalationModel: String = ""
 
     public init() {}
 
@@ -45,6 +49,8 @@ public struct Profile: Codable, Sendable, Equatable {
         documents = try c.decodeIfPresent(Bool.self, forKey: .documents) ?? d.documents
         code = try c.decodeIfPresent(Bool.self, forKey: .code) ?? d.code
         parentalView = try c.decodeIfPresent(Bool.self, forKey: .parentalView) ?? d.parentalView
+        modelChoice = try c.decodeIfPresent(Bool.self, forKey: .modelChoice) ?? d.modelChoice
+        escalationModel = try c.decodeIfPresent(String.self, forKey: .escalationModel) ?? d.escalationModel
     }
 }
 
@@ -135,6 +141,8 @@ public struct GlobalSettings: Codable, Sendable, Equatable {
     public var webSearchMaxResults: Int = 5
     /// Preselected model for people without their own default.
     public var defaultModel: String = "anthropic/claude-haiku-5.5"
+    /// Model for "answer with a stronger model" (empty = feature off). Overridable per person.
+    public var escalationModel: String = "anthropic/claude-sonnet-5.5"
 
     /// Small, cheap-to-good starter set for a fresh install; the admin extends it.
     public static let starterCatalog = [
@@ -174,6 +182,7 @@ public struct GlobalSettings: Codable, Sendable, Equatable {
         catalog = try v(.catalog, d.catalog)
         webSearchMaxResults = try v(.webSearchMaxResults, d.webSearchMaxResults)
         defaultModel = try v(.defaultModel, d.defaultModel)
+        escalationModel = try v(.escalationModel, d.escalationModel)
     }
 }
 
