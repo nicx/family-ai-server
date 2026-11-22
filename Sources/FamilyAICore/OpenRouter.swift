@@ -64,7 +64,16 @@ public final class OpenRouter: Sendable {
         r.setValue("Bearer \(key)", forHTTPHeaderField: "Authorization")
         r.setValue(appTitle, forHTTPHeaderField: "X-Title")
         r.setValue("https://github.com/nicx/family-ai-server", forHTTPHeaderField: "HTTP-Referer")
-        if let json {
+        if var body = json as? [String: Any] {
+            // Datenschutz: JEDE Anfrage verlangt Zero Data Retention und keine Datensammlung beim Anbieter – zusätzlich zur
+            // Guardrail im OpenRouter-Konto (zweite Absicherung; wirkt nur verschärfend). Zentral hier, damit kein Aufruf fehlt.
+            var provider = (body["provider"] as? [String: Any]) ?? [:]
+            provider["zdr"] = true
+            provider["data_collection"] = "deny"
+            body["provider"] = provider
+            r.setValue("application/json", forHTTPHeaderField: "Content-Type")
+            r.httpBody = try JSONSerialization.data(withJSONObject: body)
+        } else if let json {
             r.setValue("application/json", forHTTPHeaderField: "Content-Type")
             r.httpBody = try JSONSerialization.data(withJSONObject: json)
         }
