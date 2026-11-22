@@ -37,6 +37,7 @@ Established self-hosted chat front ends such as [Open WebUI](https://github.com/
 - **Costs under control**: one OpenRouter key per person with a limit; the server shows usage and mails at 80 % / 100 % (SMTP with STARTTLS/TLS and login, or a local relay).
 - **Parental view** per child (chats and memory, read-only); whether the child sees a notice is configurable.
 - **Coding on your own computer** (Family AI Runner): the AI reads and writes files in *one* folder and runs commands there – every command is confirmed on the computer.
+- **Privacy by design**: only what an answer needs leaves the server – first name only, a pseudonymous ID, “no retention” (ZDR) requested in every request, web search through the model provider. [What is sent, and the OpenRouter settings to make as family admin →](docs/privacy.md)
 - **Secure by default**: HTTPS via a reverse proxy, passkeys, lockout after failed logins, CSRF protection, strict Content Security Policy, admin area optionally restricted to the home network.
 
 ## Requirements
@@ -65,7 +66,14 @@ ai.example.org {
 
 Enter the public address (`https://ai.example.org`) under *Admin → Family & AI* – passkeys need it. Exposing it to the internet is possible, but a VPN remains the safer choice.
 
-### OpenRouter guardrails
+### OpenRouter settings (privacy)
+
+The app already requests *Zero Data Retention* in every request and sends only the first name. To **enforce** it for all keys, set this once in OpenRouter (details and reasons: [docs/privacy.md](docs/privacy.md)):
+
+1. *Settings → Privacy*: disable providers that may train on inputs; enable ZDR for the provider groups you use.
+2. *Default workspace → Guardrails*: enable ZDR for Anthropic, OpenAI, Google, xAI and "Other"; free training off.
+3. One key per person with a monthly limit.
+4. Pick ZDR-capable models for embeddings, images, read-aloud and dictation (the privacy page lists tested ones) and test each function once.
 
 If your keys use guardrails with model lists, also allow the models for images, read-aloud, dictation and documents (embeddings) – they are configurable under *Admin → Family & AI*. Without an embedding model, document search falls back to keyword search.
 

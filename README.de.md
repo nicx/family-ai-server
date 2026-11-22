@@ -37,6 +37,7 @@ Etablierte selbst gehostete Chat-Oberflächen wie [Open WebUI](https://github.co
 - **Kosten unter Kontrolle**: ein OpenRouter-Schlüssel pro Person mit Limit; der Server zeigt den Verbrauch und mailt bei 80 %/100 % (SMTP mit STARTTLS/TLS und Anmeldung oder lokales Relay).
 - **Eltern-Einsicht** pro Kind (Chats und Gedächtnis, nur lesend); ob das Kind einen Hinweis sieht, ist einstellbar.
 - **Programmieren auf dem eigenen Computer** (Family AI Runner): die KI liest und schreibt Dateien in *einem* Ordner und führt dort Befehle aus – jeder Befehl wird am Computer bestätigt.
+- **Datenschutz von Anfang an**: nur das Nötige verlässt den Server – nur der Vorname, eine pseudonyme Kennung, „keine Speicherung“ (ZDR) in jeder Anfrage, Websuche über den Modellanbieter. [Was gesendet wird und welche OpenRouter-Einstellungen du als Familien-Admin setzen solltest →](docs/privacy.de.md)
 - **Sicher by default**: HTTPS über einen Reverse Proxy, Passkeys, Sperre nach Fehlversuchen, CSRF-Schutz, strenge Content-Security-Policy, Admin-Bereich optional nur aus dem Heimnetz.
 
 ## Voraussetzungen
@@ -65,7 +66,14 @@ ai.example.org {
 
 Die öffentliche Adresse (`https://ai.example.org`) unter *Verwaltung → Familie & KI* eintragen – sie wird für Passkeys gebraucht. Öffentlich ins Internet stellen ist möglich, VPN bleibt aber die sicherere Wahl.
 
-### OpenRouter-Guardrails
+### OpenRouter-Einstellungen (Datenschutz)
+
+Die App verlangt in jeder Anfrage bereits *Zero Data Retention* und sendet nur den Vornamen. Um das für alle Schlüssel **zu erzwingen**, einmal in OpenRouter einstellen (Details und Begründung: [docs/privacy.de.md](docs/privacy.de.md)):
+
+1. *Settings → Privacy*: Anbieter, die mit Eingaben trainieren dürfen, ausschalten; ZDR für die genutzten Anbietergruppen einschalten.
+2. *Default-Workspace → Guardrails*: ZDR für Anthropic, OpenAI, Google, xAI und „Other“ einschalten; Free training aus.
+3. Ein Schlüssel pro Person mit Monatslimit.
+4. ZDR-fähige Modelle für Embeddings, Bilder, Vorlesen und Diktieren wählen (die Datenschutz-Seite nennt getestete) und jede Funktion einmal testen.
 
 Wenn eure Schlüssel Guardrails mit Modell-Listen haben, müssen dort auch die Modelle für Bilder, Vorlesen, Diktieren und Dokumente (Embeddings) freigegeben sein – sie sind unter *Verwaltung → Familie & KI* einstellbar. Ohne Embedding-Modell funktioniert die Dokumentensuche als Stichwortsuche.
 
