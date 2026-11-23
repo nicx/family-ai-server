@@ -2,7 +2,7 @@
 
 *[English version](privacy.md)*
 
-Family AI Server ist für Familien gebaut, die ihre Daten möglichst bei sich behalten wollen. Die App und alle Daten laufen auf **eurem** Mac. Nur das, was für eine Antwort nötig ist, geht an OpenRouter und das Modell. Diese Seite beschreibt genau, was das ist, was die App selbst zum Schutz tut und **was du als Familien-Admin bei OpenRouter einstellen solltest**.
+Family AI Server ist für Familien gebaut, die ihre Daten möglichst bei sich behalten wollen. Die App und alle Daten laufen auf **eurem** Server (einem Mac oder dem [Docker-Image](docker.de.md)). Nur das, was für eine Antwort nötig ist, geht an OpenRouter und das Modell. Diese Seite beschreibt genau, was das ist, was die App selbst zum Schutz tut und **was du als Familien-Admin bei OpenRouter einstellen solltest**.
 
 ## Was bleibt bei euch
 
@@ -28,7 +28,7 @@ Das ist immer aktiv und braucht keine Einstellung:
 - **Nur der Vorname:** Im Systemprompt steht „Du sprichst mit <Vorname>“. Nach- und Familienname gehen nie an das Modell.
 - **Pseudonyme Kennung:** Chat-Anfragen tragen im `user`-Feld einen Hash der Nutzer-ID statt eines Namens.
 - **Websuche über den Modellanbieter:** Die Engine steht fest auf `native`. Die Suche läuft beim selben Anbieter wie die Antwort, ohne zusätzliche Drittanbieter wie Exa oder Firecrawl.
-- **Ein Schlüssel pro Person:** Kosten und Limits sind getrennt, ein Schlüssel kann einzeln gesperrt werden. Die Schlüssel liegen im macOS-Schlüsselbund.
+- **Ein Schlüssel pro Person:** Kosten und Limits sind getrennt, ein Schlüssel kann einzeln gesperrt werden. Die Schlüssel liegen im macOS-Schlüsselbund (Docker: verschlüsselte Datei, der Master-Schlüssel außerhalb des Datenvolumes).
 - **Kinderschutz:** Für Kinder gilt ein fester Hinweis im Systemprompt; Bildmodelle mit Inhaltsprüfung lehnen ungeeignete Wünsche ab (z. B. getestet mit `microsoft/mai-image-2.7-flash`).
 
 ## Einstellungen bei OpenRouter (Familien-Admin)

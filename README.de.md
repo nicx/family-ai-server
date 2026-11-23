@@ -42,17 +42,23 @@ Etablierte selbst gehostete Chat-Oberflächen wie [Open WebUI](https://github.co
 
 ## Voraussetzungen
 
-- Ein Mac (macOS 14+) als Server, der durchgehend läuft.
+- Ein Mac (macOS 14+) als Server, der durchgehend läuft – oder ein beliebiger Linux-Rechner mit Docker (Server, NAS, Raspberry Pi 5), siehe [Docker](docs/docker.de.md).
 - Pro Person ein [OpenRouter](https://openrouter.ai)-Schlüssel (am besten mit Limit und Guardrail).
 - Für Zugriff von unterwegs: VPN (empfohlen) oder Reverse Proxy mit HTTPS.
 
 ## Installation
+
+> **Schritt-für-Schritt-Anleitung für beide Varianten (Mac und Docker): [docs/installation.de.md](docs/installation.de.md)**
 
 1. App bauen (macOS mit Swift-Toolchain bzw. Command Line Tools und Go): `./Scripts/make-app.sh`, danach `dist/Family AI Server.app` nach `/Programme` ziehen. Fertige Downloads gibt es noch nicht.
 2. Beim ersten Öffnen: Rechtsklick → *Öffnen* (die App ist selbstsigniert, nicht von Apple notarisiert). Bei neueren macOS-Versionen ggf. *Systemeinstellungen → Datenschutz & Sicherheit → Trotzdem öffnen*.
 3. In der Menüleiste erscheint ein Stern. *Family AI Server öffnen* → erstes Konto anlegen (wird Admin), OpenRouter-Schlüssel eintragen.
 4. Unter *Verwaltung* Personen anlegen, Schlüssel, Modelle und Funktionen festlegen.
 5. iPhone: Adresse in Safari öffnen → Teilen → *Zum Home-Bildschirm*.
+
+### Docker (Linux, NAS, Server)
+
+Statt der Mac-App gibt es ein Docker-Image für `amd64` und `arm64`: `docker compose up -d` mit der mitgelieferten `docker-compose.yml`. Die OpenRouter-Schlüssel liegen verschlüsselt, der Master-Schlüssel außerhalb des Datenvolumes, und das erste Admin-Konto wird mit einem Einmal-Code aus dem Protokoll angelegt. [Docker-Anleitung →](docs/docker.de.md)
 
 ### Erreichbarkeit & HTTPS
 

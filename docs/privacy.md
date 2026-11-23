@@ -2,7 +2,7 @@
 
 *[Deutsche Version](privacy.de.md)*
 
-Family AI Server is built for families who want to keep their data close. The app and all data run on **your** Mac. Only what is needed for an answer goes to OpenRouter and the model. This page describes exactly what that is, what the app does on its own to protect it, and **what you, as the family admin, should configure in OpenRouter**.
+Family AI Server is built for families who want to keep their data close. The app and all data run on **your** server (a Mac, or the [Docker image](docker.md)). Only what is needed for an answer goes to OpenRouter and the model. This page describes exactly what that is, what the app does on its own to protect it, and **what you, as the family admin, should configure in OpenRouter**.
 
 ## What stays with you
 
@@ -28,7 +28,7 @@ Always on, no setting needed:
 - **First name only:** the system prompt says "You are talking with <first name>". Surname and family name never reach the model.
 - **Pseudonymous identifier:** chat requests carry a hash of the user ID in the `user` field instead of a name.
 - **Web search through the model provider:** the engine is fixed to `native`. The search runs at the same provider as the answer, with no extra third party such as Exa or Firecrawl.
-- **One key per person:** costs and limits are separate and a key can be revoked individually. Keys are stored in the macOS Keychain.
+- **One key per person:** costs and limits are separate and a key can be revoked individually. Keys are stored in the macOS Keychain (Docker: an encrypted file, the master key kept outside the data volume).
 - **Child protection:** children get a fixed note in the system prompt; image models with content moderation reject unsuitable requests (tested e.g. with `microsoft/mai-image-2.7-flash`).
 
 ## OpenRouter settings (family admin)

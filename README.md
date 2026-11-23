@@ -42,17 +42,23 @@ Established self-hosted chat front ends such as [Open WebUI](https://github.com/
 
 ## Requirements
 
-- A Mac (macOS 14+) as server that runs all the time.
+- A Mac (macOS 14+) as server that runs all the time – or any Linux host with Docker (server, NAS, Raspberry Pi 5), see [Docker](docs/docker.md).
 - One [OpenRouter](https://openrouter.ai) key per person (ideally with a limit and guardrail).
 - For access from outside: VPN (recommended) or a reverse proxy with HTTPS.
 
 ## Installation
+
+> **Step-by-step guide for both variants (Mac and Docker): [docs/installation.md](docs/installation.md)**
 
 1. Build the app (needs macOS with the Swift toolchain / Command Line Tools and Go): `./Scripts/make-app.sh`, then move `dist/Family AI Server.app` to `/Applications`. Pre-built downloads are not offered yet.
 2. On first launch: right-click → *Open* (the app is self-signed, not notarized by Apple). On newer macOS versions: *System Settings → Privacy & Security → Open Anyway*.
 3. A star appears in the menu bar. *Open Family AI Server* → create the first account (becomes admin), enter your OpenRouter key.
 4. Under *Admin*, create people and set keys, models and features.
 5. iPhone: open the address in Safari → Share → *Add to Home Screen*.
+
+### Docker (Linux, NAS, server)
+
+Instead of the Mac app there is a Docker image for `amd64` and `arm64`: `docker compose up -d` with the supplied `docker-compose.yml`. The OpenRouter keys are stored encrypted with a master key kept outside the data volume, and the first admin is created with a one-time code from the log. [Docker guide →](docs/docker.md)
 
 ### Reachability & HTTPS
 

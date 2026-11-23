@@ -32,6 +32,13 @@ CODESIGN_IDENTITY="nicx Selfsign" ./Scripts/make-app.sh    # → dist/Family AI 
 python3 Scripts/make-icons.py                # Icons aus Resources/AppIcon.svg neu rendern (macOS, Pillow)
 ```
 
+## Linux / Docker
+
+- Gleicher Quelltext, `#if os(macOS)` / `canImport(...)` nur an den Systemgrenzen: `Documents.pdfText`/`officeText` (PDFKit ↔ `pdftotext`/`unzip`), `AudioConvert` (afconvert/ImageIO ↔ `ffmpeg`/`heif-convert`), CryptoKit ↔ `swift-crypto`, `SQLite3` ↔ `CSQLite`, `URLSession.bytes` ↔ `LineStreamLoader`, Menüleisten-App nur mit SwiftUI. Neue Mac-APIs immer mit Linux-Gegenstück bauen.
+- Linux testen ohne Spur auf GitHub: Image `fas-dev` (swift:latest + libsqlite3-dev poppler-utils unzip zip ffmpeg libheif-examples libheif-plugin-libde265 python3), Repo kopieren und dort `swift run FamilyAIChecks`; Docker-Image: `docker build -t family-ai-server:test .` (Dauer ~3 min). Release-Workflow `.github/workflows/docker.yml` läuft nur bei Tag `v*`.
+- Docker-Schlüssel: `EncryptedKeyStore` (`keys.enc`, AES-GCM, Master-Schlüssel aus `FAMILY_AI_MASTER_KEY[_FILE]`, nie im Volume); falscher Schlüssel → `isLocked`, nie überschreiben. Erstes Admin-Konto nur mit Einmal-Code aus dem Log (`requireSetupCode`, nur Linux). `FAMILY_AI_TRUSTED_PROXIES` bestimmt, welchem Proxy `X-Forwarded-For` geglaubt wird (`Net.clientIP`, `IPRange`) – ohne das ist „Admin nur Heimnetz“ hinter einem Proxy-Container wirkungslos.
+- Docker-Runner-Download: macOS nur arm64 (kein lipo unter Linux); Dokumente ohne RTF/DOC/Pages.
+
 ## Fallen
 
 - **Keine SwiftUI-Makros** (`@State`, `@Observable`) – das Standard-SDK 27 der Command Line Tools hat kein Makro-Plugin. `ObservableObject` + `@Published`/`@AppStorage` verwenden. Aus demselben Grund kein XCTest/Swift Testing.
