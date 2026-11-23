@@ -249,22 +249,22 @@ struct FamilyAICoreTests {
     }
 
     func testTrustedProxies() {
-        let net = IPRange.list("172.18.0.0/16, 10.9.8.7 fd12::/16")!
-        check(net.count == 3 && IPRange.list("172.18.0.0/99") == nil && IPRange.list("kein-ip") == nil, "list parsing")
-        check(net[0].contains("172.18.5.9") && net[0].contains("::ffff:172.18.0.2") && !net[0].contains("172.19.0.1"), "CIDR /16")
+        let net = IPRange.list("172.29.0.0/16, 10.9.8.7 fd12::/16")!
+        check(net.count == 3 && IPRange.list("172.29.0.0/99") == nil && IPRange.list("kein-ip") == nil, "list parsing")
+        check(net[0].contains("172.29.5.9") && net[0].contains("::ffff:172.29.0.2") && !net[0].contains("172.30.0.1"), "CIDR /16")
         check(net[1].contains("10.9.8.7") && !net[1].contains("10.9.8.8"), "single address")
-        check(net[2].contains("fd12:aaaa::1") && !net[2].contains("fd13::1") && !net[2].contains("172.18.0.1"), "IPv6 and family mismatch")
+        check(net[2].contains("fd12:aaaa::1") && !net[2].contains("fd13::1") && !net[2].contains("172.29.0.1"), "IPv6 and family mismatch")
         check(IPRange("10.0.0.0/13")!.contains("10.7.255.255") && !IPRange("10.0.0.0/13")!.contains("10.8.0.0"), "non-byte prefix")
         // Without trusted proxies only the local machine counts (as before).
         check(Net.clientIP(peer: "203.0.113.5", forwardedFor: "10.0.0.1", trusted: []) == "203.0.113.5", "direct client cannot spoof")
         check(Net.clientIP(peer: "127.0.0.1", forwardedFor: "198.51.100.4", trusted: []) == "198.51.100.4", "local proxy still trusted")
         // Docker: the proxy container is in the trusted range, the client's address comes from the header.
-        check(Net.clientIP(peer: "172.18.0.2", forwardedFor: "198.51.100.4", trusted: net) == "198.51.100.4", "proxy container trusted")
-        check(Net.clientIP(peer: "172.18.0.2", forwardedFor: "198.51.100.4", trusted: []) == "172.18.0.2", "proxy not trusted without the setting")
-        check(Net.clientIP(peer: "172.18.0.2", forwardedFor: "10.0.0.5, 198.51.100.4", trusted: net) == "198.51.100.4", "spoofed left entries ignored")
-        check(Net.clientIP(peer: "172.18.0.2", forwardedFor: "198.51.100.4, 172.18.0.7", trusted: net) == "198.51.100.4", "chain of proxies")
-        check(Net.clientIP(peer: "172.18.0.2", forwardedFor: nil, trusted: net) == "172.18.0.2", "no header")
-        check(!Net.isPrivate(Net.clientIP(peer: "172.18.0.2", forwardedFor: "198.51.100.4", trusted: net)), "outside client is not private")
+        check(Net.clientIP(peer: "172.29.0.2", forwardedFor: "198.51.100.4", trusted: net) == "198.51.100.4", "proxy container trusted")
+        check(Net.clientIP(peer: "172.29.0.2", forwardedFor: "198.51.100.4", trusted: []) == "172.29.0.2", "proxy not trusted without the setting")
+        check(Net.clientIP(peer: "172.29.0.2", forwardedFor: "10.0.0.5, 198.51.100.4", trusted: net) == "198.51.100.4", "spoofed left entries ignored")
+        check(Net.clientIP(peer: "172.29.0.2", forwardedFor: "198.51.100.4, 172.29.0.7", trusted: net) == "198.51.100.4", "chain of proxies")
+        check(Net.clientIP(peer: "172.29.0.2", forwardedFor: nil, trusted: net) == "172.29.0.2", "no header")
+        check(!Net.isPrivate(Net.clientIP(peer: "172.29.0.2", forwardedFor: "198.51.100.4", trusted: net)), "outside client is not private")
     }
 
     func testSetupCode() {
