@@ -129,6 +129,7 @@ function renderSetup() {
     apiKey: h("input", { type: "password", placeholder: "sk-or-…" }),
     language: h("select", {}, h("option", { value: "de" }, "Deutsch"), h("option", { value: "en" }, "English")),
   };
+  if (S.info.setupCodeRequired) f.setupCode = h("input", { type: "text", autocomplete: "off", autocapitalize: "characters", required: true, placeholder: "XXXX-XXXX" });
   const form = h("form", { class: "auth-card", onsubmit: async (e) => {
     e.preventDefault(); err.textContent = "";
     try {
@@ -137,6 +138,7 @@ function renderSetup() {
     } catch (x) { err.textContent = x.message; }
   } },
     brand(t("setupTitle")), h("p", { class: "hint" }, t("welcomeSetup")),
+    f.setupCode ? field(t("setupCode"), f.setupCode, t("setupCodeHint")) : null,
     field(t("username"), f.username), field(t("displayName"), f.displayName), field(t("password"), f.password),
     field(t("aiName"), f.aiName), field(t("familyName"), f.familyName), field(t("apiKey"), f.apiKey), field(t("language"), f.language),
     err, h("button", { class: "btn primary", type: "submit" }, t("createAdmin")));

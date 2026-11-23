@@ -1,5 +1,9 @@
 import Foundation
+#if canImport(CryptoKit)
 import CryptoKit
+#else
+import Crypto
+#endif
 import HummingbirdBcrypt
 import WebAuthn
 
@@ -23,6 +27,21 @@ public enum Auth {
 
     public static func sha256(_ s: String) -> String {
         SHA256.hash(data: Data(s.utf8)).map { String(format: "%02x", $0) }.joined()
+    }
+
+    /// One-time setup code such as `K7QM-3XDA` (no look-alike characters).
+    public static func newSetupCode() -> String {
+        let alphabet = Array("ABCDEFGHJKLMNPQRSTUVWXYZ23456789")
+        let c = (0..<8).map { _ in alphabet[Int.random(in: 0..<alphabet.count, using: &rng)] }
+        return String(c[0..<4]) + "-" + String(c[4..<8])
+    }
+
+    /// Case-, dash- and space-insensitive, constant-time comparison.
+    public static func setupCodeMatches(_ given: String, _ expected: String) -> Bool {
+        func norm(_ s: String) -> [UInt8] { Array(s.uppercased().filter { $0.isLetter || $0.isNumber }.utf8) }
+        let a = norm(given), b = norm(expected)
+        guard a.count == b.count else { return false }
+        return zip(a, b).reduce(UInt8(0)) { $0 | ($1.0 ^ $1.1) } == 0
     }
 
     /// Minimum password rules: 8+ characters.

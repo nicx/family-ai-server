@@ -109,17 +109,23 @@ enum Net {
         return result
     }()
 
-    /// Client address: if the direct peer is this machine (local reverse proxy),
-    /// trust the right-most X-Forwarded-For entry.
-    static func clientIP(_ request: Request, _ context: FamilyContext) -> String {
-        let peer = (context.peerIP ?? "").replacingOccurrences(of: "::ffff:", with: "")
-        if localAddresses.contains(peer) || peer.hasPrefix("127."),
-           let xff = request.headers[HTTPField.Name("X-Forwarded-For")!] {
-            if let last = xff.split(separator: ",").last?.trimmingCharacters(in: .whitespaces), !last.isEmpty {
-                return last.replacingOccurrences(of: "::ffff:", with: "")
-            }
+    /// Client address. The direct peer is trusted as a reverse proxy if it is this machine or inside
+    /// `trusted`; then `X-Forwarded-For` is read from the right, skipping further trusted proxies, and the
+    /// first other address is the client. Anything else (a direct client) is never taken from headers.
+    static func clientIP(_ request: Request, _ context: FamilyContext, trusted: [IPRange] = []) -> String {
+        clientIP(peer: context.peerIP ?? "", forwardedFor: request.headers[HTTPField.Name("X-Forwarded-For")!], trusted: trusted)
+    }
+
+    static func clientIP(peer rawPeer: String, forwardedFor xff: String?, trusted: [IPRange]) -> String {
+        func clean(_ s: String) -> String { s.trimmingCharacters(in: .whitespaces).replacingOccurrences(of: "::ffff:", with: "") }
+        func isTrusted(_ ip: String) -> Bool {
+            localAddresses.contains(ip) || ip.hasPrefix("127.") || trusted.contains { $0.contains(ip) }
         }
-        return peer
+        let peer = clean(rawPeer)
+        guard isTrusted(peer), let xff else { return peer }
+        let chain = xff.split(separator: ",").map { clean(String($0)) }.filter { !$0.isEmpty }
+        for ip in chain.reversed() where !isTrusted(ip) { return ip }
+        return chain.first ?? peer
     }
 
     /// Private/LAN/VPN address ranges (RFC1918, loopback, CGNAT/Tailscale, IPv6 ULA/link-local).
@@ -135,5 +141,51 @@ enum Net {
         case (169, 254): return true
         default: return false
         }
+    }
+}
+
+/// An IPv4/IPv6 address or CIDR range such as `172.18.0.0/16` or `fd00::/8`.
+public struct IPRange: Sendable, Equatable {
+    let bytes: [UInt8]
+    let prefix: Int
+
+    /// Parses `a.b.c.d`, `a.b.c.d/n`, `::1` or `fd00::/8`; nil if it is not an address.
+    public init?(_ text: String) {
+        let parts = text.trimmingCharacters(in: .whitespaces).split(separator: "/", maxSplits: 1).map(String.init)
+        guard let addr = parts.first, let b = IPRange.bytes(addr) else { return nil }
+        var p = b.count * 8
+        if parts.count == 2 {
+            guard let n = Int(parts[1]), (0...p).contains(n) else { return nil }
+            p = n
+        }
+        bytes = b
+        prefix = p
+    }
+
+    /// Comma- or space-separated list, e.g. the value of `FAMILY_AI_TRUSTED_PROXIES`. Nil if any entry is invalid.
+    public static func list(_ text: String) -> [IPRange]? {
+        var out: [IPRange] = []
+        for item in text.split(whereSeparator: { $0 == "," || $0 == " " || $0 == "\n" }) where !item.isEmpty {
+            guard let r = IPRange(String(item)) else { return nil }
+            out.append(r)
+        }
+        return out
+    }
+
+    public func contains(_ ip: String) -> Bool {
+        guard let b = IPRange.bytes(ip.replacingOccurrences(of: "::ffff:", with: "")), b.count == bytes.count else { return false }
+        let full = prefix / 8, rest = prefix % 8
+        if full > 0, Array(b[0..<full]) != Array(bytes[0..<full]) { return false }
+        if rest == 0 { return true }
+        let mask = UInt8(truncatingIfNeeded: 0xFF << (8 - rest))
+        return (b[full] & mask) == (bytes[full] & mask)
+    }
+
+    static func bytes(_ s: String) -> [UInt8]? {
+        var v4 = in_addr()
+        if inet_pton(AF_INET, s, &v4) == 1 { return withUnsafeBytes(of: &v4) { Array($0) } }
+        var v6 = in6_addr()
+        if inet_pton(AF_INET6, s, &v6) == 1 { return withUnsafeBytes(of: &v6) { Array($0) } }
+        return nil
     }
 }

@@ -1,6 +1,6 @@
 const de = {
   login: "Anmelden", username: "Benutzername", password: "Passwort", passkeyLogin: "Mit Passkey anmelden", or: "oder",
-  welcomeSetup: "Willkommen! Lege das erste Konto an – es wird Admin.", setupTitle: "Einrichtung", displayName: "Anzeigename",
+  welcomeSetup: "Willkommen! Lege das erste Konto an – es wird Admin.", setupTitle: "Einrichtung", setupCode: "Einrichtungscode", setupCodeHint: "Steht im Protokoll des Containers (docker logs).", displayName: "Anzeigename",
   familyName: "Familienname (optional)", aiName: "Name der KI", apiKey: "OpenRouter-Schlüssel", createAdmin: "Admin anlegen",
   newChat: "Neuer Chat", search: "Chats durchsuchen …", today: "Heute", yesterday: "Gestern", week: "Letzte 7 Tage", older: "Älter",
   settings: "Einstellungen", admin: "Verwaltung", logout: "Abmelden", children: "Kinder", writePlaceholder: "Schreib {ai} eine Nachricht …",
@@ -38,7 +38,7 @@ const de = {
 
 const en = {
   login: "Sign in", username: "Username", password: "Password", passkeyLogin: "Sign in with passkey", or: "or",
-  welcomeSetup: "Welcome! Create the first account – it becomes the admin.", setupTitle: "Setup", displayName: "Display name",
+  welcomeSetup: "Welcome! Create the first account – it becomes the admin.", setupTitle: "Setup", setupCode: "Setup code", setupCodeHint: "Printed in the container log (docker logs).", displayName: "Display name",
   familyName: "Family name (optional)", aiName: "AI name", apiKey: "OpenRouter key", createAdmin: "Create admin",
   newChat: "New chat", search: "Search chats …", today: "Today", yesterday: "Yesterday", week: "Last 7 days", older: "Older",
   settings: "Settings", admin: "Admin", logout: "Sign out", children: "Children", writePlaceholder: "Message {ai} …",

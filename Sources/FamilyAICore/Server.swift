@@ -9,8 +9,17 @@ public struct ServerConfig: Sendable {
     public var host: String
     public var port: Int
     public var keyStore: KeyStore
+    /// Reverse proxies whose `X-Forwarded-For` is believed, in addition to this machine itself
+    /// (Docker: the proxy container's address range).
+    public var trustedProxies: [IPRange]
+    /// Docker: the first admin may only be created with a one-time code printed to the log,
+    /// so nobody on the network can claim a freshly started, still empty server.
+    public var requireSetupCode: Bool
 
-    public init(dataDir: URL, webRoot: URL, host: String = "0.0.0.0", port: Int = 8097, keyStore: KeyStore) {
+    public init(dataDir: URL, webRoot: URL, host: String = "0.0.0.0", port: Int = 8097, keyStore: KeyStore,
+                trustedProxies: [IPRange] = [], requireSetupCode: Bool = false) {
+        self.trustedProxies = trustedProxies
+        self.requireSetupCode = requireSetupCode
         self.dataDir = dataDir
         self.webRoot = webRoot
         self.host = host
@@ -30,6 +39,8 @@ public final class FamilyServer: Sendable {
     let engine: ChatEngine
     public let budget: BudgetMonitor
     let limiter = LoginLimiter()
+    /// One-time code for the first admin (nil if not required or already set up).
+    let setupCode: String?
     let chatLimiter = RateLimiter(limit: 200, window: 3600)
     let challenges = ChallengeStore()
     public let version: String
@@ -45,6 +56,19 @@ public final class FamilyServer: Sendable {
         runner = RunnerHub()
         engine = ChatEngine(store: store, router: router, keys: keys, catalog: catalog, runner: runner)
         budget = BudgetMonitor(store: store, router: router, keys: keys)
+        if config.requireSetupCode, try await store.userCount() == 0 {
+            let code = Auth.newSetupCode()
+            setupCode = code
+            FileHandle.standardOutput.write(Data("""
+
+            ==> Einrichtungscode für den ersten Admin: \(code)
+                (gilt bis zur Einrichtung; nach einem Neustart wird ein neuer erzeugt)
+
+
+            """.utf8))
+        } else {
+            setupCode = nil
+        }
     }
 
     // MARK: - Run
@@ -91,7 +115,7 @@ public final class FamilyServer: Sendable {
         let s = try await session(request)
         guard s.user.role == .admin else { throw APIError.forbidden }
         let settings = try await store.settings()
-        if settings.adminLocalOnly && !Net.isPrivate(Net.clientIP(request, context)) {
+        if settings.adminLocalOnly && !Net.isPrivate(Net.clientIP(request, context, trusted: config.trustedProxies)) {
             throw APIError(.forbidden, "Der Admin-Bereich ist nur aus dem Heimnetz/VPN erreichbar.")
         }
         return s
@@ -224,14 +248,24 @@ public final class FamilyServer: Sendable {
         api.get("info") { [self] _, _ in
             let s = try await store.settings()
             let needsSetup = try await store.userCount() == 0
-            return HTTP.json(["aiName": s.aiName, "language": s.language, "needsSetup": needsSetup,
+            return HTTP.json(["aiName": s.aiName, "language": s.language, "needsSetup": needsSetup, "setupCodeRequired": needsSetup && setupCode != nil,
                               "passkeys": Passkeys.manager(publicURL: s.publicURL, name: s.aiName) != nil,
                               "publicURL": s.publicURL, "version": version, "build": assetVersion])
         }
 
-        api.post("setup") { [self] request, _ in
+        api.post("setup") { [self] request, context in
             guard try await store.userCount() == 0 else { throw APIError.forbidden }
             let o = try await HTTP.object(request)
+            if let expected = setupCode {
+                let limitKeys = ["setup", "ip:" + Net.clientIP(request, context, trusted: config.trustedProxies)]
+                if await limiter.isBlocked(limitKeys) {
+                    throw APIError(.tooManyRequests, "Zu viele Fehlversuche. Bitte in 15 Minuten erneut versuchen.")
+                }
+                guard Auth.setupCodeMatches((o["setupCode"] as? String) ?? "", expected) else {
+                    await limiter.fail(limitKeys)
+                    throw APIError(.forbidden, "Der Einrichtungscode stimmt nicht. Er steht im Protokoll des Containers (docker logs).")
+                }
+            }
             let username = ((o["username"] as? String) ?? "").trimmingCharacters(in: .whitespaces)
             let display = ((o["displayName"] as? String) ?? username).trimmingCharacters(in: .whitespaces)
             let pw = (o["password"] as? String) ?? ""
@@ -252,7 +286,7 @@ public final class FamilyServer: Sendable {
             let o = try await HTTP.object(request)
             let username = ((o["username"] as? String) ?? "").trimmingCharacters(in: .whitespaces).lowercased()
             let pw = (o["password"] as? String) ?? ""
-            let ip = Net.clientIP(request, context)
+            let ip = Net.clientIP(request, context, trusted: config.trustedProxies)
             let limitKeys = ["u:" + username, "ip:" + ip]
             if await limiter.isBlocked(limitKeys) {
                 throw APIError(.tooManyRequests, "Zu viele Fehlversuche. Bitte in 15 Minuten erneut versuchen.")
@@ -643,7 +677,7 @@ public final class FamilyServer: Sendable {
 
         api.post("passkeys/login/finish") { [self] request, context in
             let o = try await HTTP.object(request)
-            let ip = Net.clientIP(request, context)
+            let ip = Net.clientIP(request, context, trusted: config.trustedProxies)
             if await limiter.isBlocked(["ip:" + ip]) { throw APIError(.tooManyRequests, "Zu viele Fehlversuche.") }
             guard let cid = o["challengeId"] as? String, let ch = await challenges.take(cid), let credObj = o["credential"] else {
                 throw APIError.bad("Abgelaufen, bitte erneut versuchen")
