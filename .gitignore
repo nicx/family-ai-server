@@ -4,3 +4,5 @@ dist/
 .DS_Store
 .swiftpm/
 .claude/
+master.key
+.env

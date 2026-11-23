@@ -1,0 +1,9 @@
+.build
+dist
+.git
+.github
+.claude
+docs
+*.md
+master.key
+.env

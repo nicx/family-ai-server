@@ -1,0 +1,31 @@
+# Family AI Server – Docker (Linux, amd64/arm64). Anleitung: docs/docker.de.md
+#
+#   openssl rand -base64 32 > master.key && chmod 600 master.key
+#   docker compose up -d
+#   docker compose logs family-ai        # zeigt den Einrichtungscode
+#   → http://<server>:8097
+#
+# Hinter einem Reverse Proxy (HTTPS, nötig für Passkeys und außerhalb des Heimnetzes):
+#   docker compose -f docker-compose.yml -f docker-compose.proxy.yml up -d
+services:
+  family-ai:
+    image: ghcr.io/nicx/family-ai-server:latest
+    # Selbst bauen statt Image laden:  docker compose build
+    build: .
+    restart: unless-stopped
+    ports:
+      - "8097:8097"
+    volumes:
+      - family-ai-data:/data
+    environment:
+      FAMILY_AI_MASTER_KEY_FILE: /run/secrets/family_ai_master_key
+      TZ: Europe/Berlin
+    secrets:
+      - family_ai_master_key
+
+secrets:
+  family_ai_master_key:
+    file: ./master.key
+
+volumes:
+  family-ai-data:

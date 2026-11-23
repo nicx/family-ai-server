@@ -1,0 +1,8 @@
+# Domain hier eintragen (muss auf diesen Server zeigen, Ports 80/443 erreichbar).
+# Für reinen Heimnetz-Betrieb mit eigenem Zertifikat: https://caddyserver.com/docs/automatic-https
+ai.example.org {
+	reverse_proxy family-ai:8097 {
+		# Streaming ohne Pufferung (Antworten erscheinen Wort für Wort)
+		flush_interval -1
+	}
+}

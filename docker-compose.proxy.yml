@@ -1,0 +1,35 @@
+# Zusatz für den Betrieb hinter Caddy (automatisches HTTPS). Verwendung:
+#   docker compose -f docker-compose.yml -f docker-compose.proxy.yml up -d
+# Vorher in docker/Caddyfile die Domain eintragen (siehe docs/docker.de.md).
+services:
+  family-ai:
+    ports: !reset []              # nur der Proxy ist von außen erreichbar
+    environment:
+      # Dem Proxy im festen Netz unten wird die Client-Adresse (X-Forwarded-For) geglaubt –
+      # nötig für „Verwaltung nur aus Heimnetz/VPN“ und die Anmelde-Sperre.
+      FAMILY_AI_TRUSTED_PROXIES: 172.29.77.0/24
+    networks:
+      - family-ai-net
+
+  caddy:
+    image: caddy:2
+    restart: unless-stopped
+    ports:
+      - "80:80"
+      - "443:443"
+    volumes:
+      - ./docker/Caddyfile:/etc/caddy/Caddyfile:ro
+      - caddy-data:/data
+    depends_on:
+      - family-ai
+    networks:
+      - family-ai-net
+
+networks:
+  family-ai-net:
+    ipam:
+      config:
+        - subnet: 172.29.77.0/24
+
+volumes:
+  caddy-data:
