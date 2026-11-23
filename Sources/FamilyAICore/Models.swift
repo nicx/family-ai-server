@@ -109,11 +109,11 @@ public struct GlobalSettings: Codable, Sendable, Equatable {
     public var aiName: String = "Lumi"
     public var familyName: String = ""
     public var language: String = "de"
-    public var imageModel: String = "google/gemini-2.5-flash-image"
+    public var imageModel: String = "microsoft/mai-image-2.7-flash"
     public var ttsModel: String = "microsoft/mai-voice-2.1-flash"
     public var ttsVoice: String = "de-DE-Mia:MAI-Voice-2.1-Flash"
     public var sttModel: String = "openai/whisper-large-v3-turbo"
-    public var embedModel: String = "google/gemini-embedding-2"
+    public var embedModel: String = "openai/text-embedding-3-large"
     public var titleModel: String = ""
     /// Delete chats older than N days; 0 = never.
     public var retentionDays: Int = 0
