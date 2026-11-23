@@ -1,4 +1,7 @@
 import Foundation
+#if canImport(FoundationNetworking)
+import FoundationNetworking
+#endif
 
 public struct OpenRouterError: Error, CustomStringConvertible {
     public let status: Int
@@ -110,19 +113,18 @@ public final class OpenRouter: Sendable {
                     var b = body
                     b["stream"] = true
                     let req = try request("chat/completions", key: key, json: b)
-                    let (bytes, resp) = try await session.bytes(for: req)
-                    let status = (resp as? HTTPURLResponse)?.statusCode ?? 0
+                    let (status, lines) = try await openLineStream(req)
                     if !(200..<300).contains(status) {
-                        var data = Data()
-                        for try await byte in bytes { data.append(byte); if data.count > 20000 { break } }
-                        throw OpenRouterError(status: status, message: Self.errorMessage(data))
+                        var text = ""
+                        for try await line in lines { text += line + "\n"; if text.utf8.count > 20000 { break } }
+                        throw OpenRouterError(status: status, message: Self.errorMessage(Data(text.utf8)))
                     }
                     var calls: [Int: ToolCall] = [:]
                     var finish: String?
                     var usage: Usage?
                     var seenImages = Set<String>()
                     var seenSources = Set<String>()
-                    for try await line in bytes.lines {
+                    for try await line in lines {
                         try Task.checkCancellation()
                         guard line.hasPrefix("data:") else { continue }
                         let payload = line.dropFirst(5).trimmingCharacters(in: .whitespaces)
@@ -181,6 +183,24 @@ public final class OpenRouter: Sendable {
             }
             continuation.onTermination = { _ in task.cancel() }
         }
+    }
+
+    /// Opens a streaming request and returns the HTTP status and the response body line by line.
+    /// macOS uses `URLSession.bytes`; swift-corelibs-foundation (Linux) has no such API, so a delegate feeds the lines.
+    func openLineStream(_ req: URLRequest) async throws -> (Int, AsyncThrowingStream<String, Error>) {
+        #if canImport(FoundationNetworking)
+        return try await LineStreamLoader.open(req, configuration: session.configuration)
+        #else
+        let (bytes, resp) = try await session.bytes(for: req)
+        let status = (resp as? HTTPURLResponse)?.statusCode ?? 0
+        let lines = AsyncThrowingStream<String, Error> { c in
+            let t = Task {
+                do { for try await l in bytes.lines { c.yield(l) }; c.finish() } catch { c.finish(throwing: error) }
+            }
+            c.onTermination = { _ in t.cancel() }
+        }
+        return (status, lines)
+        #endif
     }
 
     static func parseUsage(_ u: [String: Any]) -> Usage {

@@ -1,6 +1,7 @@
 import Foundation
 
 enum AppPaths {
+    #if os(macOS)
     static let supportDir: URL = {
         let base = FileManager.default.urls(for: .applicationSupportDirectory, in: .userDomainMask).first!
         return base.appendingPathComponent("Family AI Server", isDirectory: true)
@@ -23,4 +24,14 @@ enum AppPaths {
     static var version: String {
         (Bundle.main.infoDictionary?["CFBundleShortVersionString"] as? String) ?? "0.1.0-dev"
     }
+    #else
+    // Linux / Docker: everything comes from the environment (see docker/ in the repository).
+    private static func env(_ name: String) -> String? {
+        let v = ProcessInfo.processInfo.environment[name] ?? ""
+        return v.isEmpty ? nil : v
+    }
+    static var dataDir: URL { URL(fileURLWithPath: env("FAMILY_AI_DATA") ?? "/data") }
+    static var webRoot: URL { URL(fileURLWithPath: env("FAMILY_AI_WEB") ?? "/app/Web") }
+    static var version: String { env("FAMILY_AI_VERSION") ?? "0.1.0-dev" }
+    #endif
 }

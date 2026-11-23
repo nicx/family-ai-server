@@ -9,6 +9,8 @@ let package = Package(
         .package(url: "https://github.com/hummingbird-project/hummingbird-auth.git", from: "2.0.0"),
         .package(url: "https://github.com/swift-server/webauthn-swift.git", from: "1.0.0-beta.1"),
         .package(url: "https://github.com/apple/swift-http-types.git", from: "1.0.0"),
+        // Linux (Docker): CryptoKit replacement; WebAuthn already depends on it.
+        .package(url: "https://github.com/apple/swift-crypto.git", from: "3.0.0"),
     ],
     targets: [
         .target(
@@ -18,10 +20,14 @@ let package = Package(
                 .product(name: "HummingbirdBcrypt", package: "hummingbird-auth"),
                 .product(name: "WebAuthn", package: "webauthn-swift"),
                 .product(name: "HTTPTypes", package: "swift-http-types"),
+                .product(name: "Crypto", package: "swift-crypto", condition: .when(platforms: [.linux])),
+                .target(name: "CSQLite", condition: .when(platforms: [.linux])),
             ],
             path: "Sources/FamilyAICore",
             linkerSettings: [.linkedLibrary("sqlite3")]
         ),
+        // SQLite headers on Linux (apt: libsqlite3-dev); macOS uses the SDK's SQLite3 module.
+        .systemLibrary(name: "CSQLite", path: "Sources/CSQLite"),
         .executableTarget(
             name: "FamilyAIServer",
             dependencies: ["FamilyAICore"],

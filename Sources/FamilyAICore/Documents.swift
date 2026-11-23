@@ -1,5 +1,7 @@
 import Foundation
+#if canImport(PDFKit)
 import PDFKit
+#endif
 
 /// Text extraction, chunking and embedding search for uploaded documents.
 public enum Documents {
@@ -11,20 +13,11 @@ public enum Documents {
     public static func extractText(data: Data, name: String, mime: String) -> String? {
         let ext = (name as NSString).pathExtension.lowercased()
         if mime == "application/pdf" || ext == "pdf" {
-            guard let doc = PDFDocument(data: data) else { return nil }
-            var parts: [String] = []
-            for i in 0..<doc.pageCount {
-                if let s = doc.page(at: i)?.string { parts.append(s) }
-            }
-            let text = parts.joined(separator: "\n\n")
+            guard let text = pdfText(data) else { return nil }
             return text.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty ? nil : text
         }
         if ["docx", "doc", "rtf", "odt", "pages"].contains(ext) || mime.contains("wordprocessingml") || mime == "application/rtf" {
-            let types: [String: NSAttributedString.DocumentType] = ["docx": .officeOpenXML, "doc": .docFormat, "rtf": .rtf, "odt": .openDocument]
-            var opts: [NSAttributedString.DocumentReadingOptionKey: Any] = [:]
-            if let t = types[ext] { opts[.documentType] = t }
-            if let s = try? NSAttributedString(data: data, options: opts, documentAttributes: nil) { return s.string }
-            return nil
+            return officeText(data, ext: ext)
         }
         if mime.hasPrefix("text/") || textTypes.contains(ext) || mime == "application/json" {
             return String(data: data, encoding: .utf8) ?? String(data: data, encoding: .isoLatin1)
@@ -117,5 +110,70 @@ public enum Documents {
             results += kw.filter { !seen.contains($0.text) }.sorted { $0.score > $1.score }.prefix(limit - results.count)
         }
         return results
+    }
+
+    // MARK: Platform specific extraction
+
+    #if canImport(PDFKit)
+    static func pdfText(_ data: Data) -> String? {
+        guard let doc = PDFDocument(data: data) else { return nil }
+        var parts: [String] = []
+        for i in 0..<doc.pageCount {
+            if let s = doc.page(at: i)?.string { parts.append(s) }
+        }
+        return parts.joined(separator: "\n\n")
+    }
+
+    /// Word, RTF and ODT through the system's document importers.
+    static func officeText(_ data: Data, ext: String) -> String? {
+        let types: [String: NSAttributedString.DocumentType] = ["docx": .officeOpenXML, "doc": .docFormat, "rtf": .rtf, "odt": .openDocument]
+        var opts: [NSAttributedString.DocumentReadingOptionKey: Any] = [:]
+        if let t = types[ext] { opts[.documentType] = t }
+        if let s = try? NSAttributedString(data: data, options: opts, documentAttributes: nil) { return s.string }
+        return nil
+    }
+    #else
+    /// Linux: `pdftotext` (poppler-utils).
+    static func pdfText(_ data: Data) -> String? {
+        ExternalTool.withTempFile(data, ext: "pdf") { path in
+            guard let r = ExternalTool.run("pdftotext", ["-enc", "UTF-8", path, "-"]), r.status == 0 else { return nil }
+            return String(data: r.output, encoding: .utf8)
+        } ?? nil
+    }
+
+    /// Linux: DOCX and ODT are ZIP archives with XML (read through `unzip`); RTF, DOC and Pages are not supported.
+    static func officeText(_ data: Data, ext: String) -> String? {
+        let member: String
+        switch ext {
+        case "docx": member = "word/document.xml"
+        case "odt": member = "content.xml"
+        default: return nil
+        }
+        return ExternalTool.withTempFile(data, ext: ext) { path in
+            guard let r = ExternalTool.run("unzip", ["-p", path, member]), r.status == 0,
+                  let xml = String(data: r.output, encoding: .utf8) else { return nil }
+            return xmlText(xml)
+        } ?? nil
+    }
+    #endif
+
+    /// Plain text from WordprocessingML / OpenDocument XML: paragraph ends become line breaks,
+    /// tags are dropped and the XML entities decoded.
+    static func xmlText(_ xml: String) -> String {
+        var s = xml
+        for (pattern, repl) in [("</w:p>", "\n"), ("</text:p>", "\n"), ("</text:h>", "\n"),
+                                ("<w:tab/>", "\t"), ("<text:tab/>", "\t"), ("<w:br/>", "\n"), ("<text:line-break/>", "\n"),
+                                ("<text:s/>", " ")] {
+            s = s.replacingOccurrences(of: pattern, with: repl)
+        }
+        var out = ""
+        var inTag = false
+        for ch in s {
+            if ch == "<" { inTag = true } else if ch == ">" { inTag = false } else if !inTag { out.append(ch) }
+        }
+        for (e, c) in [("&lt;", "<"), ("&gt;", ">"), ("&quot;", "\""), ("&apos;", "'"), ("&amp;", "&")] {
+            out = out.replacingOccurrences(of: e, with: c)
+        }
+        return out.trimmingCharacters(in: .whitespacesAndNewlines)
     }
 }

@@ -1,5 +1,9 @@
 import Foundation
+#if canImport(SQLite3)
 import SQLite3
+#else
+import CSQLite
+#endif
 
 /// A value that can be bound to / read from SQLite.
 public enum SQLValue: Sendable, Equatable {

@@ -1,11 +1,13 @@
 import Foundation
+#if canImport(ImageIO)
 import ImageIO
 import UniformTypeIdentifiers
+#endif
 
 enum AudioConvert {
     /// Normalises browser recordings for the transcription API.
-    /// Safari records MP4/AAC, which is converted to 16 kHz mono WAV with the system's
-    /// `afconvert`; WebM/Ogg (Chrome/Firefox) are passed through.
+    /// Safari records MP4/AAC, which is converted to 16 kHz mono WAV (macOS: `afconvert`,
+    /// Linux: `ffmpeg`); WebM/Ogg (Chrome/Firefox) are passed through.
     static func prepare(data: Data, mime: String) -> (Data, String) {
         let m = mime.lowercased()
         if m.contains("webm") { return (data, "webm") }
@@ -19,19 +21,19 @@ enum AudioConvert {
         defer { try? FileManager.default.removeItem(at: input); try? FileManager.default.removeItem(at: output) }
         do {
             try data.write(to: input)
-            let p = Process()
-            p.executableURL = URL(fileURLWithPath: "/usr/bin/afconvert")
-            p.arguments = ["-f", "WAVE", "-d", "LEI16@16000", "-c", "1", input.path, output.path]
-            p.standardOutput = FileHandle.nullDevice
-            p.standardError = FileHandle.nullDevice
-            try p.run()
-            p.waitUntilExit()
-            if p.terminationStatus == 0, let wav = try? Data(contentsOf: output) { return (wav, "wav") }
+            #if os(macOS)
+            let r = ExternalTool.run("afconvert", ["-f", "WAVE", "-d", "LEI16@16000", "-c", "1", input.path, output.path])
+            #else
+            let r = ExternalTool.run("ffmpeg", ["-y", "-loglevel", "error", "-i", input.path, "-ar", "16000", "-ac", "1", output.path])
+            #endif
+            if r?.status == 0, let wav = try? Data(contentsOf: output) { return (wav, "wav") }
         } catch {}
         return (data, "m4a")
     }
 
+    /// iPhone photos (HEIC) are converted to JPEG, as most models do not read HEIC.
     static func heicToJPEG(_ data: Data) -> Data? {
+        #if canImport(ImageIO)
         guard let src = CGImageSourceCreateWithData(data as CFData, nil),
               let img = CGImageSourceCreateImageAtIndex(src, 0, nil) else { return nil }
         let out = NSMutableData()
@@ -39,5 +41,15 @@ enum AudioConvert {
         CGImageDestinationAddImage(dest, img, [kCGImageDestinationLossyCompressionQuality: 0.85] as CFDictionary)
         guard CGImageDestinationFinalize(dest) else { return nil }
         return out as Data
+        #else
+        // Linux: libheif's `heif-convert` (apt: libheif-examples).
+        let tmp = FileManager.default.temporaryDirectory
+        let input = tmp.appendingPathComponent("family-ai-\(newID()).heic")
+        let output = tmp.appendingPathComponent("family-ai-\(newID()).jpg")
+        defer { try? FileManager.default.removeItem(at: input); try? FileManager.default.removeItem(at: output) }
+        guard (try? data.write(to: input)) != nil,
+              ExternalTool.run("heif-convert", ["-q", "85", input.path, output.path])?.status == 0 else { return nil }
+        return try? Data(contentsOf: output)
+        #endif
     }
 }

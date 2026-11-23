@@ -1,3 +1,4 @@
+#if canImport(SwiftUI)
 import SwiftUI
 import ServiceManagement
 import FamilyAICore
@@ -272,3 +273,4 @@ struct SettingsView: View {
         .padding()
     }
 }
+#endif
