@@ -86,7 +86,7 @@ Oder das Image selbst bauen: `docker compose build` (dauert ein paar Minuten, br
 | OpenRouter-Schlüssel | macOS-Schlüsselbund | verschlüsselte Datei + Master-Schlüssel |
 | Sicherungen | eingebaut (täglich) | liegt bei dir (siehe oben) |
 | Dokumente | PDF, Word, RTF, ODT, Text | PDF, **DOCX**, **ODT**, Text (kein RTF/DOC/Pages) |
-| Runner-Download für macOS | universal | nur Apple Silicon |
+| Runner-Downloads | macOS-Menüleisten-App, Windows-Apps, Linux | Windows-Apps und Linux; macOS nur als Terminalprogramm für Apple Silicon (die Mac-App lässt sich nur auf einem Mac bauen) |
 | Sprachaufnahmen aus Safari, iPhone-Fotos (HEIC) | System-Frameworks | `ffmpeg` und `libheif` im Image |
 | Erstes Konto | in der App | Einmal-Code aus dem Protokoll |
 

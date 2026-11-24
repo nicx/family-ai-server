@@ -9,7 +9,7 @@ One shared web app, one OpenRouter key per person, parental view for children, v
 
 A simple, private AI for the whole family: one Mac runs the server, everyone uses the same modern web app – on the iPhone as an app on the home screen, on a Mac or Windows PC in the browser. Models come from [OpenRouter](https://openrouter.ai). The AI is called **Lumi** by default and can be renamed per family.
 
-> Status: early version (0.1). Used daily by one family. Passkeys work; the Windows runner is cross-compiled and unit-tested but has not been verified on a real Windows PC yet.
+> Status: early version (0.1). Used daily by one family. Passkeys work; the Windows runner app is cross-compiled and unit-tested but has not been verified on a real Windows PC yet.
 
 <p align="center"><img src="docs/screenshots/chat.png" width="760" alt="Chat in the browser"></p>
 
@@ -36,7 +36,7 @@ Established self-hosted chat front ends such as [Open WebUI](https://github.com/
 - **Web search** with sources, **memory** per person, **search your documents**.
 - **Costs under control**: one OpenRouter key per person with a limit; the server shows usage and mails at 80 % / 100 % (SMTP with STARTTLS/TLS and login, or a local relay).
 - **Parental view** per child (chats and memory, read-only); whether the child sees a notice is configurable.
-- **Coding on your own computer** (Family AI Runner): the AI reads and writes files in *one* folder and runs commands there – every command is confirmed on the computer.
+- **Coding on your own computer** (Family AI Runner): the AI reads and writes files in *one* folder and runs commands there. Every command and every file write is confirmed (popup on the computer, optionally in the chat). Runs as a small menu-bar app (macOS) or taskbar app (Windows); the AI can also save pictures from the chat into the folder.
 - **Privacy by design**: only what an answer needs leaves the server – first name only, a pseudonymous ID, “no retention” (ZDR) requested in every request, web search through the model provider. [What is sent, and the OpenRouter settings to make as family admin →](docs/privacy.md)
 - **Secure by default**: HTTPS via a reverse proxy, passkeys, lockout after failed logins, CSRF protection, strict Content Security Policy, admin area optionally restricted to the home network.
 

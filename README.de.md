@@ -9,7 +9,7 @@ Eine gemeinsame Web-App, ein OpenRouter-Schlüssel pro Person, Eltern-Einsicht f
 
 Family AI Server ist eine schlanke Familien-KI: Ein Mac im Haus betreibt den Server, alle in der Familie nutzen dieselbe moderne Web-App – auf dem iPhone als App auf dem Home-Bildschirm, am Mac oder Windows-PC im Browser. Die Modelle kommen über [OpenRouter](https://openrouter.ai). Die KI heißt standardmäßig **Lumi** und lässt sich pro Familie umbenennen.
 
-> Status: frühe Version (0.1). Wird täglich von einer Familie genutzt. Passkeys funktionieren; der Windows-Runner ist cross-kompiliert und getestet, aber noch nicht auf einem echten Windows-PC verifiziert.
+> Status: frühe Version (0.1). Wird täglich von einer Familie genutzt. Passkeys funktionieren; die Windows-Runner-App ist cross-kompiliert und getestet, aber noch nicht auf einem echten Windows-PC verifiziert.
 
 <p align="center"><img src="docs/screenshots/chat.png" width="760" alt="Chat im Browser"></p>
 
@@ -36,7 +36,7 @@ Etablierte selbst gehostete Chat-Oberflächen wie [Open WebUI](https://github.co
 - **Websuche** mit Quellen, **Gedächtnis** pro Person, **Dokumente** durchsuchen.
 - **Kosten unter Kontrolle**: ein OpenRouter-Schlüssel pro Person mit Limit; der Server zeigt den Verbrauch und mailt bei 80 %/100 % (SMTP mit STARTTLS/TLS und Anmeldung oder lokales Relay).
 - **Eltern-Einsicht** pro Kind (Chats und Gedächtnis, nur lesend); ob das Kind einen Hinweis sieht, ist einstellbar.
-- **Programmieren auf dem eigenen Computer** (Family AI Runner): die KI liest und schreibt Dateien in *einem* Ordner und führt dort Befehle aus – jeder Befehl wird am Computer bestätigt.
+- **Programmieren auf dem eigenen Computer** (Family AI Runner): die KI liest und schreibt Dateien in *einem* Ordner und führt dort Befehle aus. Jeder Befehl und jedes Schreiben von Dateien wird bestätigt (Popup am Computer, optional im Chat). Läuft als kleine Menüleisten-App (macOS) bzw. Taskleisten-App (Windows); die KI kann auch Bilder aus dem Chat im Ordner speichern.
 - **Datenschutz von Anfang an**: nur das Nötige verlässt den Server – nur der Vorname, eine pseudonyme Kennung, „keine Speicherung“ (ZDR) in jeder Anfrage, Websuche über den Modellanbieter. [Was gesendet wird und welche OpenRouter-Einstellungen du als Familien-Admin setzen solltest →](docs/privacy.de.md)
 - **Sicher by default**: HTTPS über einen Reverse Proxy, Passkeys, Sperre nach Fehlversuchen, CSRF-Schutz, strenge Content-Security-Policy, Admin-Bereich optional nur aus dem Heimnetz.
 

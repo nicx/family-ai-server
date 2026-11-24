@@ -34,7 +34,7 @@ cd family-ai-server
 ./Scripts/make-app.sh
 ```
 
-Das Skript baut den Server und die Runner-Programme und erzeugt `dist/Family AI Server.app`. Die App nach `/Programme` (`/Applications`) verschieben.
+Das Skript baut den Server und die Runner-Apps (macOS-Menüleisten-App, Windows-Taskleisten-Apps, Linux-Programme) und erzeugt `dist/Family AI Server.app`. Die App nach `/Programme` (`/Applications`) verschieben.
 
 Optional: mit einem eigenen Zertifikat signieren, damit macOS Berechtigungen über neue Builds hinweg behält: `CODESIGN_IDENTITY="Mein Zertifikat" ./Scripts/make-app.sh`. Ohne Zertifikat wird ad hoc signiert.
 

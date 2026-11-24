@@ -34,7 +34,7 @@ cd family-ai-server
 ./Scripts/make-app.sh
 ```
 
-The script builds the server and the runner programs and creates `dist/Family AI Server.app`. Move it to `/Applications`.
+The script builds the server and the runner apps (macOS menu-bar app, Windows taskbar apps, Linux programs) and creates `dist/Family AI Server.app`. Move it to `/Applications`.
 
 Optional: sign it with your own certificate so macOS remembers permissions across rebuilds: `CODESIGN_IDENTITY="My certificate" ./Scripts/make-app.sh`. Without one, the app is ad-hoc signed.
 
