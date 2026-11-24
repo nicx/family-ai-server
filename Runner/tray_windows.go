@@ -131,20 +131,10 @@ func u16(s string) *uint16 {
 	return p
 }
 
-// iconFor draws a filled circle (32x32, BGRA) in the state colour.
+// iconFor builds the tray icon (logo + status dot, see trayPixels).
 func iconFor(state int) uintptr {
-	col := [3][3]byte{{0x90, 0x90, 0x90}, {0x3c, 0xb0, 0x2e}, {0x30, 0x30, 0xd8}}[state] // B, G, R
 	const n = 32
-	xor := make([]byte, n*n*4)
-	for y := 0; y < n; y++ {
-		for x := 0; x < n; x++ {
-			dx, dy := float64(x)-15.5, float64(y)-15.5
-			if dx*dx+dy*dy <= 14.5*14.5 {
-				i := (y*n + x) * 4
-				xor[i], xor[i+1], xor[i+2], xor[i+3] = col[0], col[1], col[2], 0xff
-			}
-		}
-	}
+	xor := trayPixels(state)
 	and := make([]byte, n*n/8)
 	hInst, _, _ := getModuleHandle.Call(0)
 	h, _, _ := createIcon.Call(hInst, n, n, 1, 32, uintptr(unsafe.Pointer(&and[0])), uintptr(unsafe.Pointer(&xor[0])))
