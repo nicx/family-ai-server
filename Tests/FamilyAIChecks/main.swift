@@ -22,6 +22,7 @@ struct FamilyAICoreTests {
         t.testMailCurlConfig(); t.testSettingsDefaults(); t.testPrivacy(); t.testDocuments(); t.testEncryptedKeyStore(); t.testTrustedProxies(); t.testSetupCode()
         do { try await t.testStoreRoundtrip() } catch { check(false, "Store: \(error)") }
         await t.testRunnerHubRoundtrip()
+        await t.testRunnerApprovalInChat()
         await t.testStreaming()
         print("\(checks) Prüfungen, \(failures) Fehler")
         exit(failures == 0 ? 0 : 1)
@@ -106,6 +107,50 @@ struct FamilyAICoreTests {
         XCTAssertEqual(r.output, "inhalt")
         let foreign = await hub.complete(deviceId: "d2", jobId: "x", result: .init(ok: true, output: ""))
         check(!(foreign))
+        // Offline at once: connection dropped (task cancelled) or runner says goodbye.
+        let lost = Task { await hub.poll(deviceId: "d9", timeout: 30) }
+        try? await Task.sleep(nanoseconds: 200_000_000)
+        check(await hub.isOnline("d9"), "waiting poll counts as online")
+        lost.cancel(); _ = await lost.value
+        try? await Task.sleep(nanoseconds: 200_000_000)
+        check(!(await hub.isOnline("d9")), "dropped connection = offline at once")
+        let bye = Task { await hub.poll(deviceId: "d8", timeout: 30) }
+        try? await Task.sleep(nanoseconds: 200_000_000)
+        await hub.goOffline(deviceId: "d8"); _ = await bye.value
+        check(!(await hub.isOnline("d8")), "goodbye = offline at once")
+        let again = Task { await hub.poll(deviceId: "d8", timeout: 30) }
+        try? await Task.sleep(nanoseconds: 200_000_000)
+        check(await hub.isOnline("d8"), "back online after reconnect")
+        again.cancel(); _ = await again.value
+        // Poll that runs out normally (longer than the 6 s window): the gap before the next poll must not look offline.
+        _ = await hub.poll(deviceId: "d7", timeout: 6.5)
+        check(await hub.isOnline("d7"), "no offline gap after a poll timed out")
+    }
+
+    func testRunnerApprovalInChat() async {
+        actor Cards { var ids: [String] = []; func add(_ id: String) { ids.append(id) }; var count: Int { ids.count } }
+        let cards = Cards()
+        let hub = RunnerHub()
+        async let result = hub.execute(deviceId: "a", tool: "run_command", args: ["command": "ls"], chatTitle: nil, timeout: 10,
+                                       onAsk: { job in await cards.add(job.id) })
+        let job = await hub.poll(deviceId: "a", timeout: 5)!
+        let first = await hub.ask(deviceId: "a", jobId: job.id, wait: 0.2)
+        XCTAssertEqual(first, "pending")
+        let again = await hub.ask(deviceId: "a", jobId: job.id, wait: 0.2)
+        XCTAssertEqual(again, "pending")
+        try? await Task.sleep(nanoseconds: 100_000_000)
+        XCTAssertEqual(await cards.count, 1, "card is shown exactly once")
+        let stranger = await hub.ask(deviceId: "b", jobId: job.id, wait: 0.1)
+        XCTAssertEqual(stranger, "deny")
+        Task { try? await Task.sleep(nanoseconds: 200_000_000); _ = await hub.decide(jobId: job.id, allow: true) }
+        let allowed = await hub.ask(deviceId: "a", jobId: job.id, wait: 5)
+        XCTAssertEqual(allowed, "allow")
+        let twice = await hub.decide(jobId: job.id, allow: false)
+        check(!twice, "decision cannot be changed")
+        _ = await hub.complete(deviceId: "a", jobId: job.id, result: .init(ok: true, output: "x"))
+        _ = await result
+        let gone = await hub.ask(deviceId: "a", jobId: job.id, wait: 0.1)
+        XCTAssertEqual(gone, "deny", "finished job = no approval")
     }
 
     func testMailCurlConfig() {

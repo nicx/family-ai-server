@@ -50,7 +50,12 @@ public final class FamilyServer: Sendable {
         self.config = config
         self.version = version
         store = try await Store(dataDir: config.dataDir)
-        router = OpenRouter()
+        // Test hook: point model traffic at a local mock (never set in normal operation).
+        if let u = ProcessInfo.processInfo.environment["FAMILY_AI_OPENROUTER_URL"], let url = URL(string: u) {
+            router = OpenRouter(baseURL: url)
+        } else {
+            router = OpenRouter()
+        }
         keys = config.keyStore
         catalog = ModelCatalog(router: router)
         runner = RunnerHub()
@@ -459,6 +464,17 @@ public final class FamilyServer: Sendable {
             if let m = o["model"] as? String {
                 guard await allowedModels(for: s.user).contains(where: { $0.id == m }) else { throw APIError.forbidden }
                 chat.model = m
+            }
+            if let mode = o["mode"] as? String {
+                if mode == "code" {
+                    guard s.user.profile.code else { throw APIError.forbidden }
+                    guard let did = o["deviceId"] as? String, let d = try await store.device(id: did), d.userId == s.user.id else {
+                        throw APIError.bad("Computer nicht gefunden")
+                    }
+                    chat.mode = "code"; chat.deviceId = d.id
+                } else {
+                    chat.mode = "chat"; chat.deviceId = nil
+                }
             }
             try await store.updateChat(chat)
             return HTTP.encodable(chat)
@@ -890,6 +906,16 @@ public final class FamilyServer: Sendable {
             let d = try await store.addDevice(userId: s.user.id, name: String(name.prefix(60)), tokenHash: Auth.sha256(token))
             return HTTP.json(["device": HTTP.toJSON(d), "token": token])
         }
+        // Answer from the chat to a runner's approval question (only the owner of the computer).
+        api.post("approvals/:id") { [self] request, context in
+            let s = try await session(request)
+            let id: String = try context.parameters.require("id")
+            let o = try await HTTP.object(request)
+            guard let allow = o["allow"] as? Bool else { throw APIError.bad("allow fehlt") }
+            guard let did = await runner.deviceId(forJob: id), let dev = try await store.device(id: did), dev.userId == s.user.id,
+                  await runner.decide(jobId: id, allow: allow) else { throw APIError.notFound }
+            return HTTP.ok()
+        }
         api.delete("devices/:id") { [self] request, context in
             let s = try await session(request)
             try await store.deleteDevice(id: try context.parameters.require("id"), userId: s.user.id)
@@ -902,6 +928,17 @@ public final class FamilyServer: Sendable {
             try await store.touchDevice(id: dev.id, workspace: q.get("workspace"), platform: q.get("platform"))
             guard let job = await runner.poll(deviceId: dev.id) else { return Response(status: .noContent) }
             return HTTP.encodable(job)
+        }
+        api.post("runner/bye") { [self] request, _ in
+            let dev = try await device(request)
+            await runner.goOffline(deviceId: dev.id)
+            return HTTP.ok()
+        }
+        api.post("runner/ask") { [self] request, _ in
+            let dev = try await device(request)
+            let o = try await HTTP.object(request)
+            guard let jobId = o["jobId"] as? String else { throw APIError.bad("jobId fehlt") }
+            return HTTP.json(["state": await runner.ask(deviceId: dev.id, jobId: jobId)])
         }
         api.post("runner/result") { [self] request, _ in
             let dev = try await device(request)

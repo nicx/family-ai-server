@@ -40,7 +40,7 @@ const I = {
   logout: svg('<path d="M9 21H5a2 2 0 01-2-2V5a2 2 0 012-2h4M16 17l5-5-5-5M21 12H9"/>'),
   trash: svg('<path d="M3 6h18M8 6V4h8v2M19 6l-1 14H6L5 6"/>'),
   pencil: svg('<path d="M12 20h9M16.5 3.5a2.1 2.1 0 013 3L7 19l-4 1 1-4z"/>'),
-  code: svg('<path d="M16 18l6-6-6-6M8 6l-6 6 6 6"/>'),
+  code: svg('<path d="M7 8l-4 4 4 4M17 8l4 4-4 4M14 4l-4 16"/>'),
   download: svg('<path d="M12 4v11M7 10l5 5 5-5M5 20h14"/>'),
   file: svg('<path d="M14 2H6a2 2 0 00-2 2v16a2 2 0 002 2h12a2 2 0 002-2V8z"/><path d="M14 2v6h6"/>'),
   key: svg('<circle cx="7.5" cy="15.5" r="5.5"/><path d="M21 2l-9.6 9.6M15.5 7.5l3 3L22 7l-3-3"/>'),
@@ -61,6 +61,27 @@ async function checkBuild(force = false) {
   } catch {}
 }
 document.addEventListener("visibilitychange", () => { if (document.visibilityState === "visible") checkBuild(); });
+// Runner asks for approval in the chat (instead of a popup on the computer).
+function approvalCard(ev) {
+  const card = h("div", { class: "approval" });
+  const answer = async (allow) => {
+    card.querySelectorAll("button").forEach((b) => (b.disabled = true));
+    try {
+      await api("POST", `approvals/${ev.id}`, { allow });
+      card.replaceChildren(h("div", { class: "approval-title" }, t(allow ? "approvalAllowed" : "approvalDenied"), ": ", t("tool_" + ev.tool)));
+    } catch (e) {
+      card.replaceChildren(h("div", { class: "approval-title" }, t("approvalGone")));
+    }
+  };
+  card.append(
+    h("div", { class: "approval-title" }, t("approvalAsk", { ai: S.me?.aiName || "KI", what: t("tool_" + ev.tool) })),
+    h("pre", { class: "approval-text" }, ev.text),
+    h("div", { class: "row", style: "gap:8px" },
+      h("button", { class: "btn primary", onclick: () => answer(true) }, t("approvalAllow")),
+      h("button", { class: "btn", onclick: () => answer(false) }, t("approvalDeny"))));
+  return card;
+}
+
 async function api(method, path, body, opts = {}) {
   // Extra headers are merged, never replace the CSRF header.
   const { headers: extra, raw, ...rest } = opts;
@@ -209,6 +230,7 @@ async function startApp() {
   els.chatList = h("div", { class: "chat-list" });
   els.search = h("input", { type: "text", placeholder: t("search"), oninput: debounce(loadChats, 250) });
   els.title = h("div", { class: "title" });
+  els.codeBtn = h("button", { class: "code-toggle hidden", onclick: onCodeToggle });
   els.modelSelect = h("select", { class: "model-select", onchange: onModelChange });
   els.messages = h("div", { class: "messages" });
   els.inner = h("div", { class: "messages-inner" });
@@ -229,7 +251,7 @@ async function startApp() {
   const sidebar = h("aside", { class: "sidebar" },
     h("div", { class: "sidebar-head" }, h("img", { src: "/icon-192.png", alt: "" }), h("strong", {}, S.me.aiName),
       h("button", { class: "icon-btn menu-toggle", html: I.x, onclick: closeDrawer })),
-    h("button", { class: "btn new-chat", onclick: () => newChatMenu() }, icon("plus"), t("newChat")),
+    h("button", { class: "btn new-chat", onclick: () => newChat() }, icon("plus"), t("newChat")),
     h("div", { class: "search" }, els.search),
     els.chatList, els.kidsBox,
     h("div", { class: "sidebar-foot" },
@@ -239,8 +261,8 @@ async function startApp() {
   const main = h("main", { class: "main" },
     h("div", { class: "topbar" },
       h("button", { class: "icon-btn menu-toggle", html: I.menu, onclick: openDrawer }),
-      els.title, els.modelSelect,
-      h("button", { class: "icon-btn", title: t("newChat"), html: I.pencil, onclick: () => newChatMenu() })),
+      els.title, els.codeBtn, els.modelSelect,
+      h("button", { class: "icon-btn", title: t("newChat"), html: I.pencil, onclick: () => newChat() })),
     els.messages, els.composer);
   els.app = h("div", { class: "app" }, sidebar, h("div", { class: "scrim", onclick: closeDrawer }), main);
   document.body.replaceChildren(els.app);
@@ -254,8 +276,23 @@ async function startApp() {
   if (p.code) S.devices = await api("GET", "devices").catch(() => []);
   if (["parent", "admin"].includes(S.me.user.role)) loadKids();
   await loadChats();
+  if (p.code) {
+    setInterval(refreshDevices, 5000);
+    document.addEventListener("visibilitychange", refreshDevices);
+  }
   window.addEventListener("hashchange", route);
   route();
+}
+
+// Verbindungsstatus der Computer nachziehen und die Chatliste nur bei einer Änderung neu zeichnen.
+async function refreshDevices() {
+  if (document.hidden) return;
+  const next = await api("GET", "devices").catch(() => null);
+  if (!next) return;
+  const key = (l) => l.map((d) => d.id + (d.online ? "1" : "0")).join();
+  const changed = key(next) !== key(S.devices);
+  S.devices = next;
+  if (changed) { renderChatList(); updateCodeBtn(); }
 }
 
 function fillModelSelect(selected) {
@@ -279,6 +316,14 @@ async function loadChats() {
   renderChatList();
 }
 
+// Markierung für Programmier-Chats rechts in der Liste: </> und ein Punkt (grün = Runner verbunden).
+function codeMark(c) {
+  const dev = S.devices.find((d) => d.id === c.deviceId);
+  const label = dev ? `${t("codeOn", { device: dev.name })} – ${dev.online ? t("online") : t("offline")}` : t("codeOn", { device: "" });
+  return h("span", { class: "code-mark", title: label },
+    h("span", { class: "code-ic", html: I.code }), h("span", { class: "dot" + (dev?.online ? " on" : "") }));
+}
+
 function renderChatList() {
   const groups = { [t("today")]: [], [t("yesterday")]: [], [t("week")]: [], [t("older")]: [] };
   const now = new Date(); const start = new Date(now.getFullYear(), now.getMonth(), now.getDate()).getTime() / 1000;
@@ -290,8 +335,8 @@ function renderChatList() {
   els.chatList.replaceChildren(...Object.entries(groups).filter(([, v]) => v.length).flatMap(([title, list]) => [
     h("div", { class: "group-title" }, title),
     list.map((c) => h("a", { class: "chat-item" + (S.chat && S.chat.id === c.id ? " active" : ""), href: `#/c/${c.id}`, onclick: closeDrawer, ...chatMenuEvents(c) },
-      c.mode === "code" ? h("span", { class: "badge", html: I.code, style: "display:inline-flex;width:16px" }) : null,
-      h("span", { class: "title" }, c.title))),
+      h("span", { class: "title" }, c.title),
+      c.mode === "code" ? codeMark(c) : null)),
   ].flat()));
 }
 
@@ -366,8 +411,9 @@ function setComposerVisible(v) { els.composer.classList.toggle("hidden", !v); }
 
 function showEmpty(mode = "chat", deviceId = null) {
   S.chat = null; S.messages = []; S.readOnly = false; S.newMode = mode; S.newDevice = deviceId;
-  els.title.textContent = mode === "code" ? t("codeOn", { device: S.devices.find((d) => d.id === deviceId)?.name || "" }) : "";
+  els.title.textContent = "";
   setComposerVisible(true);
+  updateCodeBtn();
   els.modelSelect.disabled = false;
   fillModelSelect(store.get("lastModel", S.defaultModel) && S.models.some((m) => m.id === store.get("lastModel")) ? store.get("lastModel") : S.defaultModel);
   const sug = t("suggestions").filter((s, i) => i !== 2 || S.me.user.profile.images);
@@ -380,14 +426,55 @@ function showEmpty(mode = "chat", deviceId = null) {
   if (!matchMedia("(max-width: 820px)").matches) els.input.focus();
 }
 
-function newChatMenu() {
+function newChat() {
   closeDrawer();
-  const devs = S.me.user.profile.code ? S.devices : [];
-  if (!devs.length) { location.hash = "#/"; showEmpty(); return; }
-  const ov = overlay(t("chooseMode"), h("div", {},
-    h("button", { class: "nav-item", onclick: () => { ov.remove(); location.hash = "#/"; showEmpty(); } }, icon("plus"), t("plainChat")),
-    devs.map((d) => h("button", { class: "nav-item", onclick: () => { ov.remove(); location.hash = "#/"; showEmpty("code", d.id); } },
-      icon("code"), t("codeOn", { device: d.name }), h("span", { class: "tag " + (d.online ? "ok" : "") }, d.online ? t("online") : t("offline"))))));
+  location.hash = "#/";
+  showEmpty();
+}
+
+// ---------- Programmieren im Chat ein-/ausschalten ----------
+function codeState() {
+  return S.chat ? { mode: S.chat.mode, deviceId: S.chat.deviceId } : { mode: S.newMode || "chat", deviceId: S.newDevice };
+}
+
+function updateCodeBtn() {
+  const btn = els.codeBtn;
+  if (!btn) return;
+  const usable = S.me.user.profile.code && S.devices.length && !S.readOnly && !els.composer.classList.contains("hidden");
+  btn.classList.toggle("hidden", !usable);
+  if (!usable) return;
+  const { mode, deviceId } = codeState();
+  const dev = mode === "code" ? S.devices.find((d) => d.id === deviceId) : null;
+  btn.classList.toggle("active", mode === "code");
+  btn.title = mode === "code" ? `${t("codeOn", { device: dev?.name || "" })} – ${dev?.online ? t("online") : t("offline")}. ${t("codeStop")}` : t("codeStart");
+  btn.replaceChildren(...[h("span", { class: "code-ic", html: I.code }),
+    mode === "code" ? h("span", { class: "code-name" }, dev?.name || "") : null,
+    mode === "code" ? h("span", { class: "dot" + (dev?.online ? " on" : "") }) : null].filter(Boolean));
+}
+
+function onCodeToggle() {
+  if (S.streaming || S.readOnly) return;
+  if (codeState().mode === "code") return setCodeMode("chat", null);
+  if (S.devices.length === 1) return setCodeMode("code", S.devices[0].id);
+  const ov = overlay(t("codeChoose"), h("div", {},
+    S.devices.map((d) => h("button", { class: "nav-item", onclick: () => { ov.remove(); setCodeMode("code", d.id); } },
+      icon("code"), d.name, h("span", { class: "tag " + (d.online ? "ok" : "") }, d.online ? t("online") : t("offline"))))));
+}
+
+async function setCodeMode(mode, deviceId) {
+  const dev = S.devices.find((d) => d.id === deviceId);
+  if (S.chat) {
+    try { S.chat = await api("PATCH", `chats/${S.chat.id}`, { mode, deviceId }); } catch { return; }
+    const notice = h("div", { class: "notice" }, mode === "code" ? t("codeNotice", { ai: S.me.aiName, device: dev?.name || "" }) : t("codeEnded"));
+    els.inner.append(notice);
+    scrollDown(true);
+    const c = S.chats.find((x) => x.id === S.chat.id);
+    if (c) { c.mode = S.chat.mode; c.deviceId = S.chat.deviceId; }
+  } else {
+    S.newMode = mode; S.newDevice = deviceId;
+  }
+  updateCodeBtn();
+  renderChatList();
 }
 
 async function openChat(id) {
@@ -404,6 +491,7 @@ async function openChat(id) {
   els.modelSelect.classList.toggle("hidden", S.models.length < 2 && !S.readOnly);
   renderMessages();
   renderChatList();
+  updateCodeBtn();
 }
 
 async function openKid(kidId) {
@@ -416,6 +504,7 @@ async function openKid(kidId) {
   S.chat = null;
   els.title.textContent = kid?.displayName || "";
   setComposerVisible(false);
+  updateCodeBtn();
   els.inner.replaceChildren(h("div", { style: "padding: 8px 0" },
     h("h2", { style: "margin: 0 0 12px" }, kid?.displayName),
     chats.length ? chats.map((c) => h("a", { class: "chat-item", href: `#/c/${c.id}` }, h("span", { class: "title" }, c.title),
@@ -566,6 +655,7 @@ async function stream(path, body, { voice = false } = {}) {
           case "text": live.content += ev.v; renderLive(); break;
           case "status": statusEl.append(h("div", { class: "status-line" }, ev.v)); scrollDown(); break;
           case "image": attEl.append(attachmentsEl([{ fileId: ev.fileId, kind: "generated", name: "" }])); scrollDown(); break;
+          case "approval": statusEl.append(approvalCard(ev)); scrollDown(true); break;
           case "source": live.sources.push(ev); break;
           case "error": statusEl.append(h("div", { class: "error-text" }, ev.v)); break;
           case "done": final = ev.message; break;
@@ -910,9 +1000,10 @@ async function documentsTab() {
 }
 
 const RUNNER_FILES = [
-  ["family-ai-runner-windows-x64.exe", "Windows (Intel/AMD)"],
-  ["family-ai-runner-windows-arm64.exe", "Windows (ARM)"],
-  ["family-ai-runner-macos", "macOS"],
+  ["family-ai-runner-tray-windows-x64.exe", "runnerWinApp"],
+  ["family-ai-runner-tray-windows-arm64.exe", "runnerWinAppArm"],
+  ["family-ai-runner-macos-app.zip", "runnerMacApp"],
+  ["family-ai-runner-macos", "macOS (Terminal)"], // only without the app (Docker image)
   ["family-ai-runner-linux-x64", "Linux (x64)"],
   ["family-ai-runner-linux-arm64", "Linux (ARM)"],
 ];
@@ -921,23 +1012,34 @@ async function runnerHelp(token) {
   const server = location.origin;
   // SHA256SUMS lists exactly the runner builds bundled with this server.
   const sums = await fetch("/runner/SHA256SUMS", { cache: "no-store" }).then((r) => (r.ok ? r.text() : "")).catch(() => "");
-  const files = RUNNER_FILES.filter(([f]) => sums.includes(f));
+  const have = new Set(sums.split("\n").map((l) => l.trim().split(/\s+/)[1]).filter(Boolean));
+  const files = RUNNER_FILES.filter(([f]) => have.has(f) && !(f === "family-ai-runner-macos" && have.has("family-ai-runner-macos-app.zip")));
+  const tokenText = h("div", { class: "code-block" }, token);
+  const copyBtn = h("button", { class: "btn", onclick: async () => {
+    try { await navigator.clipboard.writeText(token); toast(t("copied")); }
+    catch { // no clipboard access (e.g. plain http): select the key so Cmd/Ctrl+C works
+      const r = document.createRange(); r.selectNodeContents(tokenText);
+      const sel = getSelection(); sel.removeAllRanges(); sel.addRange(r);
+    }
+  } }, icon("copy"), t("copy"));
+  const tokenBox = h("div", { class: "row", style: "flex-wrap:wrap;gap:8px;align-items:center" }, tokenText, copyBtn);
   const ua = navigator.userAgent;
-  const mine = /Windows/.test(ua) ? "family-ai-runner-windows-x64.exe" : /Mac OS X/.test(ua) && !/iPhone|iPad/.test(ua) ? "family-ai-runner-macos" : "";
+  const mine = /Windows/.test(ua) ? "family-ai-runner-tray-windows-x64.exe" : /Mac OS X/.test(ua) && !/iPhone|iPad/.test(ua) ? "family-ai-runner-macos-app.zip" : "";
+  const terminalOnly = files.some(([f]) => f === "family-ai-runner-macos") || files.some(([f]) => f.includes("linux"));
   return h("div", { class: "card" },
-    h("p", {}, t("tokenOnce")), h("div", { class: "code-block" }, token),
+    h("p", {}, t("tokenOnce")), tokenBox,
     h("p", {}, h("strong", {}, "1. "), t("runnerStep1")),
     files.length
       ? h("div", { class: "row", style: "flex-wrap:wrap;gap:8px" }, files.map(([f, label]) =>
-          h("a", { class: "btn" + (f === mine ? " primary" : ""), href: `/runner/${f}`, download: f }, icon("download"), label)))
+          h("a", { class: "btn" + (f === mine ? " primary" : ""), href: `/runner/${f}`, download: f }, icon("download"), /^runner/.test(label) ? t(label) : label)))
       : h("p", { class: "hint" }, t("runnerMissing")),
     h("p", {}, h("strong", {}, "2. "), t("runnerStep2")),
     h("div", { class: "code-block" }, `${t("runnerServer")}: ${server}\n${t("runnerToken")}: ${token}\n${t("runnerWorkspace")}: ${t("runnerWorkspaceEx")}`),
-    h("p", { class: "hint" }, t("runnerSmartScreen")),
-    h("p", { class: "hint" }, t("runnerMac")),
-    h("details", {}, h("summary", { class: "hint" }, t("runnerCli")),
-      h("div", { class: "code-block" }, `family-ai-runner-windows-x64.exe --server ${server} --token ${token} --workspace C:\\Projekte\\…`),
-      h("p", { class: "hint" }, t("runnerFlags"))));
+    h("p", { class: "hint" }, t("runnerMacApp2"), " ", t("runnerSmartScreen")),
+    terminalOnly ? h("details", {}, h("summary", { class: "hint" }, t("runnerCli")),
+      files.some(([f]) => f === "family-ai-runner-macos") ? h("p", { class: "hint" }, t("runnerMac")) : null,
+      h("div", { class: "code-block" }, `./family-ai-runner-linux-x64 --server ${server} --token ${token} --workspace ~/projekte/spiel`),
+      h("p", { class: "hint" }, t("runnerFlags"))) : null);
 }
 
 async function devicesTab() {

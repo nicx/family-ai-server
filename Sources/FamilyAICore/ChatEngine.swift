@@ -37,6 +37,7 @@ public enum ChatEvent: Sendable {
     case text(String)
     case status(String)
     case image(fileId: String)
+    case approval(id: String, tool: String, title: String, text: String)
     case source(Source)
     case done(Message)
     case error(String)
@@ -46,6 +47,7 @@ public enum ChatEvent: Sendable {
         case .text(let s): return ["t": "text", "v": s]
         case .status(let s): return ["t": "status", "v": s]
         case .image(let id): return ["t": "image", "fileId": id]
+        case .approval(let id, let tool, let title, let text): return ["t": "approval", "id": id, "tool": tool, "title": title, "text": text]
         case .source(let s): return ["t": "source", "url": s.url, "title": s.title ?? ""]
         case .done(let m): return ["t": "done", "message": (try? JSONSerialization.jsonObject(with: jsonEncoder.encode(m))) ?? [:]]
         case .error(let s): return ["t": "error", "v": s]
@@ -125,7 +127,7 @@ public final class ChatEngine: Sendable {
         if let codeDevice {
             lines.append("""
             Du arbeitest als Programmier-Assistent auf dem Computer „\(codeDevice.name)“ der Person (Arbeitsordner: \(codeDevice.workspace ?? "unbekannt"), System: \(codeDevice.platform ?? "unbekannt")).
-            Werkzeuge: list_files, read_file, write_file, run_command. Pfade sind relativ zum Arbeitsordner. Jede Aktion muss die Person am Computer freigeben; wird sie abgelehnt, frag nach, statt es erneut zu versuchen.
+            Werkzeuge: list_files, read_file, write_file, run_command, save_image (legt ein erzeugtes oder hochgeladenes Bild als Datei im Arbeitsordner ab; write_file kann nur Text). Pfade sind relativ zum Arbeitsordner. Jede Aktion muss die Person am Computer freigeben; wird sie abgelehnt, frag nach, statt es erneut zu versuchen.
             Arbeite in kleinen, nachvollziehbaren Schritten und erkläre kurz, was du tust.
             """)
         }
@@ -170,6 +172,9 @@ public final class ChatEngine: Sendable {
                         ["path": ["type": "string"], "content": ["type": "string"]], ["path", "content"]))
             t.append(fn("run_command", "Führt einen Shell-Befehl im Arbeitsordner aus und liefert die Ausgabe.",
                         ["command": ["type": "string"]], ["command"]))
+            t.append(fn("save_image", "Speichert ein Bild aus diesem Chat (erzeugt oder hochgeladen) als Datei im Arbeitsordner, z. B. header.jpg. Ohne file_id wird das neueste Bild genommen. Erlaubt: png, jpg, jpeg, webp, gif, höchstens 5 MB.",
+                        ["path": ["type": "string", "description": "Relativer Dateiname mit Endung"],
+                         "file_id": ["type": "string", "description": "Bild-ID, optional"]], ["path"]))
         }
         return t
     }
@@ -235,7 +240,12 @@ public final class ChatEngine: Sendable {
             if chat.mode == "code", user.profile.code, let did = chat.deviceId,
                let d = try await store.device(id: did), d.userId == user.id {
                 codeDevice = d
-                if !(await runner.isOnline(did)) {
+                var online = await runner.isOnline(did)
+                for _ in 0..<12 where !online { // a moment of grace, e.g. while the runner reconnects
+                    try? await Task.sleep(nanoseconds: 250_000_000)
+                    online = await runner.isOnline(did)
+                }
+                if !online {
                     await emit(.status("Gerät „\(d.name)“ ist nicht verbunden – Code-Werkzeuge stehen erst zur Verfügung, wenn Family AI Runner läuft."))
                     codeDevice = nil
                 }
@@ -341,7 +351,31 @@ public final class ChatEngine: Sendable {
                 let rec = try await store.saveFile(userId: user.id, name: "bild.\(ext)", mime: img.mime, kind: "generated", data: img.data)
                 attachments.append(Attachment(fileId: rec.id, name: rec.name, mime: img.mime, kind: "generated"))
                 await emit(.image(fileId: rec.id))
-                return "Das Bild wurde erzeugt und der Person angezeigt. Beschreibe es nicht erneut ausführlich."
+                let hint = codeDevice != nil ? " Mit save_image kannst du es im Arbeitsordner speichern (Bild-ID: \(rec.id))." : ""
+                return "Das Bild wurde erzeugt und der Person angezeigt. Beschreibe es nicht erneut ausführlich." + hint
+            case "save_image":
+                guard let dev = codeDevice else { return "Kein Gerät verbunden." }
+                let path = ((args["path"] as? String) ?? "").trimmingCharacters(in: .whitespaces)
+                guard !path.isEmpty else { return "FEHLER: Kein Dateiname angegeben." }
+                var rec: Store.FileRecord?
+                if let id = args["file_id"] as? String, !id.isEmpty {
+                    rec = try await store.file(id: id)
+                } else {
+                    let history = try await store.messages(chatId: chat.id)
+                    let all = history.flatMap(\.attachments) + attachments
+                    if let a = all.last(where: { $0.mime.hasPrefix("image/") }) { rec = try await store.file(id: a.fileId) }
+                }
+                guard let file = rec, file.userId == user.id, file.mime.hasPrefix("image/") else {
+                    return "FEHLER: Kein passendes Bild in diesem Chat gefunden."
+                }
+                guard file.size <= 5_000_000 else { return "FEHLER: Das Bild ist größer als 5 MB." }
+                let data = try Data(contentsOf: store.filePath(id: file.id))
+                await emit(.status("Speichere Bild \(path) – wartet auf Freigabe an „\(dev.name)“ …"))
+                let r = await runner.execute(deviceId: dev.id, tool: "save_image",
+                                             args: ["path": path, "data": data.base64EncodedString()], chatTitle: chat.title,
+                                             onAsk: Self.askCard(emit))
+                await emit(.status(r.ok ? "Bild \(path) gespeichert ✓" : "Bild \(path) ✗"))
+                return (r.ok ? "" : "FEHLER: ") + r.output
             case "remember":
                 guard user.profile.memory else { return "Gedächtnis ist deaktiviert." }
                 let fact = ((args["fact"] as? String) ?? "").trimmingCharacters(in: .whitespacesAndNewlines)
@@ -377,7 +411,7 @@ public final class ChatEngine: Sendable {
                 default: label = "Liste \(sargs["path"].flatMap { $0.isEmpty ? nil : $0 } ?? "Arbeitsordner")"
                 }
                 await emit(.status("\(label) – wartet auf Freigabe an „\(dev.name)“ …"))
-                let r = await runner.execute(deviceId: dev.id, tool: name, args: sargs, chatTitle: chat.title)
+                let r = await runner.execute(deviceId: dev.id, tool: name, args: sargs, chatTitle: chat.title, onAsk: Self.askCard(emit))
                 await emit(.status(r.ok ? "\(label) ✓" : "\(label) ✗"))
                 let out = r.output.count > 30_000 ? String(r.output.prefix(30_000)) + "\n[… gekürzt]" : r.output
                 return (r.ok ? "" : "FEHLER: ") + out
@@ -386,6 +420,14 @@ public final class ChatEngine: Sendable {
             }
         } catch {
             return "Fehler: \(error)"
+        }
+    }
+
+    /// Card with Allow / Deny in the chat, shown when the runner asks for approval there.
+    static func askCard(_ emit: @escaping @Sendable (ChatEvent) async -> Void) -> @Sendable (RunnerHub.Job) async -> Void {
+        { job in
+            let d = RunnerHub.describe(job)
+            await emit(.approval(id: job.id, tool: job.tool, title: d.title, text: d.text))
         }
     }
 

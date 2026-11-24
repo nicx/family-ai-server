@@ -117,7 +117,11 @@ label.field > span { display: block; font-size: 13px; color: var(--muted); margi
 .chat-item.active { background: var(--user-bubble); }
 .chat-item .title { flex: 1; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .chat-item { -webkit-touch-callout: none; -webkit-user-select: none; user-select: none; }
-.chat-item .badge { font-size: 11px; color: var(--accent); }
+.chat-item .code-mark { display: inline-flex; align-items: center; gap: 6px; flex: none; }
+.chat-item .code-ic { display: inline-flex; width: 16px; height: 16px; color: var(--accent-2); }
+.chat-item .code-ic svg { width: 16px; height: 16px; }
+.chat-item .dot { width: 8px; height: 8px; border-radius: 50%; background: var(--muted); opacity: .5; }
+.chat-item .dot.on { background: var(--ok); opacity: 1; }
 .sidebar-foot { border-top: 1px solid var(--border); padding: 8px; display: flex; flex-direction: column; gap: 2px; }
 .nav-item { display: flex; align-items: center; gap: 10px; padding: 9px 10px; border-radius: 10px; cursor: pointer; font-size: 14px; border: none; background: none; text-align: left; width: 100%; }
 .nav-item:hover { background: var(--surface-2); }
@@ -130,6 +134,16 @@ label.field > span { display: block; font-size: 13px; color: var(--muted); margi
   padding: env(safe-area-inset-top) 12px 0; height: calc(56px + env(safe-area-inset-top)); flex: none;
 }
 .topbar .title { flex: 1; font-weight: 600; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.code-toggle { display: inline-flex; align-items: center; gap: 6px; flex: none; height: 36px; padding: 0 10px; border-radius: 10px;
+  border: 1px solid var(--border); background: none; color: var(--muted); cursor: pointer; font-size: 13px; max-width: 160px; }
+.code-toggle:hover { background: var(--surface-2); }
+.code-toggle.active { color: var(--text); border-color: var(--accent-2); background: var(--surface-2); }
+.code-toggle .code-ic { display: inline-flex; width: 18px; height: 18px; }
+.code-toggle.active .code-ic { color: var(--accent-2); }
+.code-toggle .code-ic svg { width: 18px; height: 18px; }
+.code-toggle .code-name { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.code-toggle .dot { width: 8px; height: 8px; border-radius: 50%; background: var(--muted); opacity: .5; flex: none; }
+.code-toggle .dot.on { background: var(--ok); opacity: 1; }
 .menu-toggle { display: none; }
 .model-select { max-width: 280px; padding: 7px 10px; font-size: 14px; background: var(--surface); }
 
@@ -148,6 +162,9 @@ label.field > span { display: block; font-size: 13px; color: var(--muted); margi
 .msg-actions .icon-btn.escalate { width: auto; padding: 0 10px; gap: 6px; font: inherit; font-size: 13px; color: var(--accent); }
 .msg-actions .icon-btn.escalate span { display: inline-flex; }
 .meta-line { font-size: 12px; color: var(--muted); margin-top: 4px; }
+.approval { border: 1px solid var(--accent); border-radius: 12px; padding: 12px; margin: 8px 0; background: var(--panel, transparent); }
+.approval-title { font-weight: 600; margin-bottom: 6px; }
+.approval-text { margin: 0 0 10px; max-height: 220px; overflow: auto; white-space: pre-wrap; word-break: break-word; font-size: 13px; }
 .status-line { font-size: 13px; color: var(--muted); display: flex; align-items: center; gap: 8px; margin: 4px 0; }
 .status-line::before { content: ""; width: 6px; height: 6px; border-radius: 50%; background: var(--accent); flex: none; }
 .attachments { display: flex; flex-wrap: wrap; gap: 8px; margin-top: 8px; }
