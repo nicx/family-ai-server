@@ -294,6 +294,25 @@ public final class OpenRouter: Sendable {
         public var usage: Double?
         public var reset: String?
         public var label: String?
+
+        /// Anteil des Limits, der verbraucht ist (0–1); nil ohne Limit.
+        public var fraction: Double? {
+            guard let limit, limit > 0 else { return nil }
+            let used = remaining.map { limit - $0 } ?? usage ?? 0
+            return min(1, max(0, used / limit))
+        }
+
+        /// Nächster Rücksetzzeitpunkt: täglich 00:00 UTC, wöchentlich Montag 00:00 UTC, monatlich am 1. 00:00 UTC.
+        public func nextReset(after now: Date = Date()) -> Date? {
+            var cal = Calendar(identifier: .gregorian)
+            cal.timeZone = TimeZone(identifier: "UTC")!
+            switch reset {
+            case "daily": return cal.nextDate(after: now, matching: DateComponents(hour: 0, minute: 0, second: 0), matchingPolicy: .nextTime)
+            case "weekly": return cal.nextDate(after: now, matching: DateComponents(hour: 0, minute: 0, second: 0, weekday: 2), matchingPolicy: .nextTime)
+            case "monthly": return cal.nextDate(after: now, matching: DateComponents(day: 1, hour: 0, minute: 0, second: 0), matchingPolicy: .nextTime)
+            default: return nil
+            }
+        }
     }
 
     public func keyStatus(key: String) async throws -> KeyStatus {

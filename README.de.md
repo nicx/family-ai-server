@@ -32,7 +32,7 @@ Etablierte selbst gehostete Chat-Oberflächen wie [Open WebUI](https://github.co
 - **Bilder erzeugen**, **Bilder & Dateien verstehen** (Foto vom Arbeitsblatt, PDF, Word, Text).
 - **Sprache**: Diktieren, Vorlesen und Sprachchat (freihändig).
 - **Websuche** mit Quellen, **Gedächtnis** pro Person, **Dokumente** durchsuchen.
-- **Kosten unter Kontrolle**: ein OpenRouter-Schlüssel pro Person mit Limit; der Server zeigt den Verbrauch und mailt bei 80 %/100 % (SMTP mit STARTTLS/TLS und Anmeldung oder lokales Relay).
+- **Kosten unter Kontrolle**: ein OpenRouter-Schlüssel pro Person mit Limit; alle sehen ihren Verbrauch als kleinen Ring in der Seitenleiste (nur Prozent, keine Beträge) und der Server mailt bei 80 %/100 % (SMTP mit STARTTLS/TLS und Anmeldung oder lokales Relay).
 - **Eltern-Einsicht** pro Kind (Chats und Gedächtnis, nur lesend); ob das Kind einen Hinweis sieht, ist einstellbar.
 - **Programmieren auf dem eigenen Computer** (Family AI Runner): die KI liest und schreibt Dateien in *einem* Ordner und führt dort Befehle aus. Jeder Befehl und jedes Schreiben von Dateien wird bestätigt (Popup am Computer, optional im Chat). Läuft als kleine Menüleisten-App (macOS) bzw. Taskleisten-App (Windows); die KI kann auch Bilder aus dem Chat im Ordner speichern.
 - **Datenschutz von Anfang an**: nur das Nötige verlässt den Server – nur der Vorname, eine pseudonyme Kennung, „keine Speicherung“ (ZDR) in jeder Anfrage, Websuche über den Modellanbieter. [Was gesendet wird und welche OpenRouter-Einstellungen du als Familien-Admin setzen solltest →](docs/privacy.de.md)

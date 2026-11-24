@@ -16,10 +16,25 @@ func XCTAssertNotNil<T>(_ a: T?, line: Int = #line) { check(a != nil, "nil", lin
 @testable import FamilyAICore
 
 struct FamilyAICoreTests {
+    func testBudgetStatus() {
+        let iso = ISO8601DateFormatter()
+        let now = iso.date(from: "2026-11-24T16:30:00Z")!  // Dienstag
+        var k = OpenRouter.KeyStatus(limit: 10, remaining: 6.3, usage: 3.7, reset: "monthly", label: nil)
+        XCTAssertEqual(Int((k.fraction! * 100).rounded(.down)), 37)
+        XCTAssertEqual(iso.string(from: k.nextReset(after: now)!), "2026-12-01T00:00:00Z")
+        k.reset = "weekly"
+        XCTAssertEqual(iso.string(from: k.nextReset(after: now)!), "2026-11-30T00:00:00Z")  // Montag
+        k.reset = "daily"
+        XCTAssertEqual(iso.string(from: k.nextReset(after: now)!), "2026-11-25T00:00:00Z")
+        k.reset = nil
+        XCTAssertNil(k.nextReset(after: now))
+        XCTAssertNil(OpenRouter.KeyStatus(limit: nil, remaining: nil, usage: 5, reset: nil, label: nil).fraction)
+        XCTAssertEqual(OpenRouter.KeyStatus(limit: 5, remaining: -1, usage: 6, reset: nil, label: nil).fraction!, 1.0)
+    }
     static func runAll() async {
         let t = FamilyAICoreTests()
         t.testChunking(); t.testCosine(); t.testPrivateAddresses(); t.testPasswords(); t.testSpeakable(); t.testUsernames(); t.testDataURL()
-        t.testMailCurlConfig(); t.testSettingsDefaults(); t.testPrivacy(); t.testDocuments(); t.testEncryptedKeyStore(); t.testTrustedProxies(); t.testSetupCode()
+        t.testMailCurlConfig(); t.testSettingsDefaults(); t.testPrivacy(); t.testDocuments(); t.testEncryptedKeyStore(); t.testTrustedProxies(); t.testSetupCode(); t.testBudgetStatus()
         do { try await t.testStoreRoundtrip() } catch { check(false, "Store: \(error)") }
         await t.testRunnerHubRoundtrip()
         await t.testRunnerApprovalInChat()

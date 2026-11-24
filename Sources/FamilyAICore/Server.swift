@@ -334,11 +334,14 @@ public final class FamilyServer: Sendable {
             return HTTP.json(out)
         }
 
+        // Nur Prozent und Rücksetzzeitpunkt – keine Beträge (die sieht nur die Admin-Ansicht).
         api.get("me/budget") { [self] request, _ in
             let s = try await session(request)
-            guard let st = await budget.refresh(userId: s.user.id) else { return HTTP.json(["available": false]) }
-            return HTTP.json(["available": true, "limit": st.limit as Any, "remaining": st.remaining as Any,
-                              "usage": st.usage as Any, "reset": st.reset as Any])
+            guard let st = await budget.recent(userId: s.user.id) else { return HTTP.json(["available": false]) }
+            var out: [String: Any] = ["available": true, "hasLimit": st.fraction != nil, "reset": st.reset as Any]
+            if let f = st.fraction { out["percent"] = Int((f * 100).rounded(.down)) }
+            if let d = st.nextReset() { out["resetsAt"] = ISO8601DateFormatter().string(from: d) }
+            return HTTP.json(out)
         }
 
         api.post("me/password") { [self] request, _ in

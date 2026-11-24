@@ -276,6 +276,18 @@ label.field > span { display: block; font-size: 13px; color: var(--muted); margi
 .model-picker small { color: var(--muted); margin-left: auto; white-space: nowrap; }
 .bar { height: 8px; border-radius: 4px; background: var(--surface-2); overflow: hidden; margin-top: 6px; }
 .bar > div { height: 100%; background: linear-gradient(90deg, var(--accent), var(--accent-2)); }
+.bar.warn > div { background: #e0a526; }
+.bar.full > div { background: var(--danger); }
+.budget-bar { max-width: 780px; margin: 0 auto 8px; padding: 8px 12px; border-radius: 10px; font-size: 13px; background: #fbe0e2; color: #9a2a33; }
+.foot-row { position: relative; }
+.budget-ring { all: unset; cursor: pointer; position: absolute; right: 38px; top: 50%; transform: translateY(-50%); width: 26px; height: 26px; display: inline-flex; align-items: center; justify-content: center; border-radius: 50%; }
+.budget-ring:hover { background: var(--border); }
+.budget-ring.hidden { display: none; }
+.budget-pop { position: absolute; right: 4px; bottom: calc(100% + 6px); z-index: 20; background: var(--surface); border: 1px solid var(--border); border-radius: 12px; box-shadow: var(--shadow); padding: 10px 14px; font-size: 13px; white-space: nowrap; }
+.budget-pop.hidden { display: none; }
+.budget-dot { position: relative; }
+.budget-dot::after { content: ""; position: absolute; top: 6px; right: 6px; width: 8px; height: 8px; border-radius: 50%; background: #e0a526; }
+@media (prefers-color-scheme: dark) { .budget-bar { background: #471d22; color: #f4b0b6; } }
 .code-block { font: 13px ui-monospace, Menlo, monospace; background: var(--surface-2); padding: 10px; border-radius: 8px; word-break: break-all; white-space: pre-wrap; user-select: all; }
 .toast { position: fixed; left: 50%; bottom: 24px; transform: translateX(-50%); background: var(--text); color: var(--bg); padding: 10px 16px; border-radius: 12px; z-index: 100; font-size: 14px; box-shadow: var(--shadow); }
 .lightbox { position: fixed; inset: 0; background: rgba(0,0,0,.85); z-index: 90; display: flex; align-items: center; justify-content: center; padding: 16px; cursor: zoom-out; }

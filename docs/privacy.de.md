@@ -54,7 +54,7 @@ Eine Guardrail, die für alle Schlüssel des Workspaces gilt:
 
 ### 3. Ein Schlüssel pro Person
 
-- Pro Person einen eigenen Schlüssel anlegen und ein **monatliches Limit** setzen. Das begrenzt die Kosten und trennt die Nutzung. Die App zeigt den Verbrauch und warnt per Mail bei 80 % und 100 %.
+- Pro Person einen eigenen Schlüssel anlegen und ein **monatliches Limit** setzen. Das begrenzt die Kosten und trennt die Nutzung. Alle sehen ihren Verbrauch als Ring (nur Prozent), und der Server warnt per Mail bei 80 % und 100 %.
 - Optional pro Kind eine strengere Guardrail (Modell-Liste), wenn ihr die Auswahl einschränken wollt. Dann müssen dort auch die Modelle für Bilder, Vorlesen, Diktieren und Embeddings erlaubt sein.
 
 ### 4. ZDR-fähige Modelle für die Zusatzfunktionen wählen

@@ -100,6 +100,7 @@ public actor BudgetMonitor {
     let keys: KeyStore
     public private(set) var statuses: [String: OpenRouter.KeyStatus] = [:]
     public private(set) var errors: [String: String] = [:]
+    private var fetched: [String: Date] = [:]
 
     public init(store: Store, router: OpenRouter, keys: KeyStore) {
         self.store = store
@@ -116,7 +117,15 @@ public actor BudgetMonitor {
 
     public func refresh(userId: String) async -> OpenRouter.KeyStatus? {
         statuses[userId] = nil
-        return await status(userId: userId)
+        let s = await status(userId: userId)
+        if s != nil { fetched[userId] = Date() }
+        return s
+    }
+
+    /// Wie `refresh`, aber höchstens eine Abfrage an OpenRouter pro `maxAge` Sekunden und Person.
+    public func recent(userId: String, maxAge: TimeInterval = 60) async -> OpenRouter.KeyStatus? {
+        if let t = fetched[userId], let s = statuses[userId], Date().timeIntervalSince(t) < maxAge { return s }
+        return await refresh(userId: userId)
     }
 
     public func checkAll() async {

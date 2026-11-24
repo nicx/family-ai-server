@@ -54,7 +54,7 @@ One guardrail that applies to all keys of the workspace:
 
 ### 3. One key per person
 
-- Create one key per person and set a **monthly limit**. This caps costs and separates usage. The app shows usage and mails at 80 % and 100 %.
+- Create one key per person and set a **monthly limit**. This caps costs and separates usage. Everyone sees their own usage as a ring (percent only), and the server mails at 80 % and 100 %.
 - Optionally a stricter guardrail (model list) per child if you want to restrict the choice. Then the models for images, read-aloud, dictation and embeddings must be allowed there too.
 
 ### 4. Pick ZDR-capable models for the extra features

@@ -116,6 +116,45 @@ const store = {
   set(k, v) { try { localStorage.setItem("fai." + k, JSON.stringify(v)); } catch {} },
 };
 const initials = (n) => (n || "?").split(/\s+/).map((p) => p[0]).join("").slice(0, 2).toUpperCase();
+const budgetLevel = (p) => (p >= 100 ? "full" : p >= 80 ? "warn" : "");
+function resetText(b) {
+  if (!b?.resetsAt) return "";
+  const ms = new Date(b.resetsAt) - Date.now();
+  const hours = Math.ceil(ms / 3600000);
+  if (hours < 1) return t("resetSoon");
+  if (hours < 24) return t("resetHours", { n: hours });
+  const days = Math.ceil(hours / 24);
+  return days === 1 ? t("resetDay") : t("resetDays", { n: days });
+}
+// Verbrauchsanzeige: Ring in der Kopfzeile (Tippen = Popup), Leiste über dem Eingabefeld erst bei 100 % (Server cached ~60 s).
+async function refreshBudget() {
+  const b = await api("GET", "me/budget").catch(() => null);
+  S.budget = b?.available && b.hasLimit ? b : null;
+  renderBudget();
+}
+function ringSvg(p) {
+  const C = 2 * Math.PI * 7.2;
+  const full = p >= 100, w = p < 50 ? 2 : 2.6;
+  const col = full ? "#d64550" : p >= 80 ? "#e0a526" : p >= 50 ? "#7c5cff" : "var(--muted)";
+  const track = full ? "" : `<circle cx="9" cy="9" r="7.2" fill="none" stroke="var(--border)" stroke-width="${w}"/>`;
+  const arc = full ? `<circle cx="9" cy="9" r="7.2" fill="none" stroke="${col}" stroke-width="${w}"/>`
+    : `<circle cx="9" cy="9" r="7.2" fill="none" stroke="${col}" stroke-width="${w}" stroke-linecap="round" stroke-dasharray="${(C * p / 100).toFixed(1)} ${C.toFixed(1)}" transform="rotate(-90 9 9)"/>`;
+  return `<svg width="20" height="20" viewBox="0 0 18 18" aria-hidden="true">${track}${arc}</svg>`;
+}
+function renderBudget() {
+  if (!els.budgetRing) return;
+  const b = S.budget;
+  els.budgetRing.classList.toggle("hidden", !b);
+  els.budgetPop.classList.add("hidden");
+  els.menuBtn?.classList.toggle("budget-dot", !!b && b.percent >= 80);
+  els.budgetBar.classList.toggle("hidden", !b || b.percent < 100);
+  if (!b) return;
+  const reset = resetText(b) || t("budgetNoReset");
+  els.budgetRing.innerHTML = ringSvg(b.percent);
+  els.budgetRing.setAttribute("aria-label", t("budgetPct", { p: b.percent }));
+  els.budgetPop.replaceChildren(h("strong", {}, t("budgetPct", { p: b.percent })), h("div", { class: "hint" }, reset));
+  if (b.percent >= 100) els.budgetBar.textContent = b.resetsAt ? t("budgetEmptyUntil", { when: resetText(b) }) : t("budgetEmpty");
+}
 const fmtMoney = (v) => (v == null ? "–" : v < 0.01 && v > 0 ? "<0,01" : v.toFixed(2).replace(".", ","));
 
 // ---------- state ----------
@@ -243,7 +282,11 @@ async function startApp() {
   els.mic = p.voice ? h("button", { class: "icon-btn", title: t("dictate"), html: I.mic, onclick: toggleDictation }) : null;
   els.voice = p.voice ? h("button", { class: "icon-btn", title: t("voiceChat"), html: I.wave, onclick: startVoiceMode }) : null;
   els.notice = h("div", { class: "notice hidden" });
-  els.composer = h("div", { class: "composer-wrap" }, els.notice,
+  els.budgetBar = h("div", { class: "budget-bar full hidden" });
+  els.budgetPop = h("div", { class: "budget-pop hidden" });
+  els.budgetRing = h("button", { class: "budget-ring hidden", onclick: (e) => { e.stopPropagation(); els.budgetPop.classList.toggle("hidden"); } });
+  document.addEventListener("click", () => els.budgetPop?.classList.add("hidden"));
+  els.composer = h("div", { class: "composer-wrap" }, els.budgetBar, els.notice,
     h("div", { class: "composer" }, els.pending, els.input,
       h("div", { class: "composer-row" },
         h("button", { class: "icon-btn", title: t("attach"), html: I.clip, onclick: () => els.fileInput.click() }), els.fileInput,
@@ -257,16 +300,19 @@ async function startApp() {
     els.chatList, els.kidsBox,
     h("div", { class: "sidebar-foot" },
       S.me.user.role === "admin" ? h("button", { class: "nav-item", onclick: openAdmin }, icon("shield"), t("admin")) : null,
-      h("button", { class: "nav-item", onclick: openSettings }, h("span", { class: "avatar" }, initials(S.me.user.displayName)),
-        h("span", { style: "flex:1" }, S.me.user.displayName), h("span", { html: I.gear, style: "display:inline-flex;color:var(--muted)" }))));
+      h("div", { class: "foot-row" },
+        h("button", { class: "nav-item", onclick: openSettings }, h("span", { class: "avatar" }, initials(S.me.user.displayName)),
+          h("span", { style: "flex:1" }, S.me.user.displayName), h("span", { html: I.gear, style: "display:inline-flex;color:var(--muted)" })),
+        els.budgetRing, els.budgetPop)));
   const main = h("main", { class: "main" },
     h("div", { class: "topbar" },
-      h("button", { class: "icon-btn menu-toggle", html: I.menu, onclick: openDrawer }),
+      els.menuBtn = h("button", { class: "icon-btn menu-toggle", html: I.menu, onclick: openDrawer }),
       els.title, els.codeBtn, els.modelSelect,
       h("button", { class: "icon-btn", title: t("newChat"), html: I.pencil, onclick: () => newChat() })),
     els.messages, els.composer);
   els.app = h("div", { class: "app" }, sidebar, h("div", { class: "scrim", onclick: closeDrawer }), main);
   document.body.replaceChildren(els.app);
+  refreshBudget();
   if (S.me.parentNotice) { els.notice.textContent = t("parentNotice"); els.notice.classList.remove("hidden"); }
   if (!S.me.hasKey) { els.notice.textContent = t("noKey"); els.notice.classList.remove("hidden"); }
 
@@ -683,6 +729,7 @@ async function stream(path, body, { voice = false } = {}) {
     els.inner.querySelectorAll(".msg-actions.show").forEach((e) => e.classList.remove("show"));
     bubble.replaceWith(el);
     if (store.get("autoRead", false) && !voice && S.me.user.profile.voice) speak(final.content);
+    refreshBudget();
   } else if (S.chat) {
     // Generation continues on the server if the connection dropped; reload shortly.
     setTimeout(() => S.chat && openChat(S.chat.id), 1500);
@@ -932,12 +979,10 @@ async function accountTab() {
   const box = h("div");
   const b = await api("GET", "me/budget").catch(() => null);
   if (b?.available) {
-    const used = b.limit != null && b.remaining != null ? b.limit - b.remaining : b.usage;
-    const pct = b.limit ? Math.min(100, (used / b.limit) * 100) : 0;
     box.append(h("div", { class: "section" }, h("h3", {}, t("budget")),
-      b.limit ? [h("div", {}, t("budgetOf", { used: fmtMoney(used), limit: fmtMoney(b.limit) }),
-        b.reset ? h("span", { class: "hint" }, ` · ${t("reset")}: ${t("reset" + b.reset[0].toUpperCase() + b.reset.slice(1))}`) : null),
-        h("div", { class: "bar" }, h("div", { style: `width:${pct}%` }))] : h("div", { class: "hint" }, t("noLimit"))));
+      b.hasLimit ? [h("div", {}, t("budgetPct", { p: b.percent }),
+        h("span", { class: "hint" }, ` · ${resetText(b) || t("budgetNoReset")}`)),
+        h("div", { class: "bar " + budgetLevel(b.percent) }, h("div", { style: `width:${b.percent}%` }))] : h("div", { class: "hint" }, t("noLimit"))));
   }
   const prefs = h("div", { class: "section" }, h("h3", {}, t("preferences")),
     S.me.user.profile.voice ? sw(t("autoRead"), store.get("autoRead", false), (e) => store.set("autoRead", e.target.checked)) : null);
