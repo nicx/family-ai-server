@@ -1,6 +1,8 @@
 package main
 
 import (
+	"bytes"
+	"encoding/base64"
 	"os"
 	"path/filepath"
 	"strings"
@@ -81,11 +83,11 @@ func TestRunCommand(t *testing.T) {
 
 func TestConfirmationPolicy(t *testing.T) {
 	def := Config{}
-	if !needsConfirmation("run_command", def) || needsConfirmation("write_file", def) || needsConfirmation("read_file", def) {
-		t.Fatal("default: only commands need confirmation")
+	if !needsConfirmation("run_command", def) || !needsConfirmation("write_file", def) || needsConfirmation("read_file", def) {
+		t.Fatal("default: commands and writes need confirmation, reading does not")
 	}
-	if !needsConfirmation("write_file", Config{ConfirmWrites: true}) {
-		t.Fatal("confirm-writes")
+	if needsConfirmation("write_file", Config{AllowWrites: true}) || !needsConfirmation("run_command", Config{AllowWrites: true}) {
+		t.Fatal("allow-writes")
 	}
 	if needsConfirmation("run_command", Config{AllowAll: true}) {
 		t.Fatal("allow-all")
@@ -104,5 +106,58 @@ func TestShorten(t *testing.T) {
 	out := shorten(s)
 	if len(out) > maxOutput+100 || !strings.Contains(out, "gekürzt") {
 		t.Fatalf("len %d", len(out))
+	}
+}
+
+func TestLogRotates(t *testing.T) {
+	dir := t.TempDir()
+	t.Setenv("HOME", dir)
+	t.Setenv("XDG_CONFIG_HOME", dir)
+	logFile, logSize = nil, 0
+	line := strings.Repeat("x", 1000)
+	for i := 0; i < 2600; i++ { // ~2.6 MB
+		writeLog(line)
+	}
+	logMu.Lock()
+	logFile.Close()
+	logFile = nil
+	logMu.Unlock()
+	st, err := os.Stat(logPath())
+	if err != nil || st.Size() > logMax+2000 {
+		t.Fatalf("current log too big: %v %v", st, err)
+	}
+	if _, err := os.Stat(logPath() + ".1"); err != nil {
+		t.Fatal("no rotated file")
+	}
+	if _, err := os.Stat(logPath() + ".2"); err == nil {
+		t.Fatal("old logs pile up")
+	}
+}
+
+func TestSaveImage(t *testing.T) {
+	ws, err := NewWorkspace(t.TempDir())
+	if err != nil {
+		t.Fatal(err)
+	}
+	png := []byte("\x89PNG\r\n\x1a\n" + strings.Repeat("x", 50))
+	enc := base64.StdEncoding.EncodeToString(png)
+	if _, err := ws.SaveImage(map[string]string{"path": "img/header.png", "data": enc}); err != nil {
+		t.Fatal(err)
+	}
+	if b, _ := os.ReadFile(filepath.Join(ws.Root, "img", "header.png")); !bytes.Equal(b, png) {
+		t.Fatal("content differs")
+	}
+	for name, args := range map[string]map[string]string{
+		"not an image":  {"path": "a.png", "data": base64.StdEncoding.EncodeToString([]byte("#!/bin/sh\nrm -rf ~"))},
+		"script suffix": {"path": "a.sh", "data": enc},
+		"outside":       {"path": "../a.png", "data": enc},
+		"bad base64":    {"path": "a.png", "data": "***"},
+	} {
+		if _, err := ws.SaveImage(args); err == nil {
+			t.Fatalf("%s must fail", name)
+		}
+	}
+	if !needsConfirmation("save_image", Config{}) || needsConfirmation("save_image", Config{AllowWrites: true}) {
+		t.Fatal("save_image is confirmed like write_file")
 	}
 }

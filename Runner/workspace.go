@@ -3,6 +3,7 @@ package main
 import (
 	"bytes"
 	"context"
+	"encoding/base64"
 	"errors"
 	"fmt"
 	"io/fs"
@@ -215,6 +216,51 @@ func (w *Workspace) WriteFile(args map[string]string) (string, error) {
 		return "", err
 	}
 	return fmt.Sprintf("Geschrieben: %s (%d B)", w.display(p), len(content)), nil
+}
+
+// imageExts are the only file types save_image may create.
+var imageExts = map[string]bool{".png": true, ".jpg": true, ".jpeg": true, ".webp": true, ".gif": true}
+
+const maxImageBytes = 6 << 20
+
+// looksLikeImage checks the first bytes, so the AI cannot smuggle other data in under an image name.
+func looksLikeImage(b []byte) bool {
+	switch {
+	case bytes.HasPrefix(b, []byte("\x89PNG\r\n\x1a\n")), bytes.HasPrefix(b, []byte{0xff, 0xd8, 0xff}),
+		bytes.HasPrefix(b, []byte("GIF87a")), bytes.HasPrefix(b, []byte("GIF89a")):
+		return true
+	case len(b) > 12 && string(b[:4]) == "RIFF" && string(b[8:12]) == "WEBP":
+		return true
+	}
+	return false
+}
+
+// SaveImage writes a picture sent by the server (base64 in args["data"]) into the workspace.
+func (w *Workspace) SaveImage(args map[string]string) (string, error) {
+	p, err := w.Resolve(args["path"])
+	if err != nil {
+		return "", err
+	}
+	if !imageExts[strings.ToLower(filepath.Ext(p))] {
+		return "", errors.New("Nur Bilddateien (png, jpg, jpeg, webp, gif) erlaubt")
+	}
+	data, err := base64.StdEncoding.DecodeString(args["data"])
+	if err != nil || len(data) == 0 {
+		return "", errors.New("Bilddaten unlesbar")
+	}
+	if len(data) > maxImageBytes {
+		return "", errors.New("Bild zu groß")
+	}
+	if !looksLikeImage(data) {
+		return "", errors.New("Die Daten sind kein Bild")
+	}
+	if err := os.MkdirAll(filepath.Dir(p), 0o755); err != nil {
+		return "", err
+	}
+	if err := os.WriteFile(p, data, 0o644); err != nil {
+		return "", err
+	}
+	return fmt.Sprintf("Bild gespeichert: %s (%d B)", w.display(p), len(data)), nil
 }
 
 // capped keeps at most n bytes; the rest is counted but dropped.

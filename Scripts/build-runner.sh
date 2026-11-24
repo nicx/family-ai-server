@@ -1,10 +1,10 @@
 #!/usr/bin/env bash
 #
-# Builds Family AI Runner for Windows, macOS and Linux into dist/runner/ (needs Go).
+# Builds Family AI Runner into dist/runner/ (needs Go): Windows taskbar apps, macOS menu-bar app (zip), Linux programs.
 #
 #   CODESIGN_IDENTITY="nicx Selfsign" ./Scripts/build-runner.sh
 #
-# The macOS binary is universal (arm64 + x86_64) and signed with CODESIGN_IDENTITY
+# The macOS runner inside the app is universal (arm64 + x86_64) and signed with CODESIGN_IDENTITY
 # (ad hoc without it). Windows binaries are unsigned: SmartScreen asks once.
 set -euo pipefail
 
@@ -25,16 +25,22 @@ build() { # goos goarch output
   CGO_ENABLED=0 GOOS="$1" GOARCH="$2" go build -trimpath -ldflags "-s -w -X main.version=$VERSION" -o "$3" .
 }
 
-build windows amd64 "$OUT/family-ai-runner-windows-x64.exe"
-build windows arm64 "$OUT/family-ai-runner-windows-arm64.exe"
+buildtray() { # goarch output – Windows taskbar app: no console window
+  echo "==> windows/$1 (taskbar app)"
+  CGO_ENABLED=0 GOOS=windows GOARCH="$1" go build -trimpath -tags tray -ldflags "-s -w -H=windowsgui -X main.version=$VERSION" -o "$2" .
+}
+buildtray amd64 "$OUT/family-ai-runner-tray-windows-x64.exe"
+buildtray arm64 "$OUT/family-ai-runner-tray-windows-arm64.exe"
 build linux amd64 "$OUT/family-ai-runner-linux-x64"
 build linux arm64 "$OUT/family-ai-runner-linux-arm64"
 TMP="$(mktemp -d)"
 build darwin arm64 "$TMP/arm64"
 build darwin amd64 "$TMP/amd64"
-lipo -create -output "$OUT/family-ai-runner-macos" "$TMP/arm64" "$TMP/amd64"
+lipo -create -output "$TMP/family-ai-runner-macos" "$TMP/arm64" "$TMP/amd64"
+codesign --force --options runtime --timestamp=none -s "$IDENTITY" "$TMP/family-ai-runner-macos"
+echo "==> macOS menu-bar app"
+"$ROOT/Scripts/make-runner-app.sh" "$TMP/family-ai-runner-macos" "$OUT/family-ai-runner-macos-app.zip"
 rm -rf "$TMP"
-codesign --force --options runtime --timestamp=none -s "$IDENTITY" "$OUT/family-ai-runner-macos"
 
 (cd "$OUT" && shasum -a 256 family-ai-runner-* > SHA256SUMS)
 echo "==> Done: $OUT"

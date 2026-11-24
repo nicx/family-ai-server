@@ -3,15 +3,15 @@
 # Family AI Server for Linux (amd64 / arm64).  Build:  docker build -t family-ai-server .
 # Run with docker-compose.yml (see docs/docker.md): needs a master key secret, data lives in /data.
 
-# ---- Family AI Runner (Windows, macOS arm64, Linux) ----
+# ---- Family AI Runner (Windows apps, macOS arm64 terminal fallback, Linux) ----
 FROM --platform=$BUILDPLATFORM golang:1-bookworm AS runner
 ARG VERSION=0.1.0-dev
 WORKDIR /src/Runner
 COPY Runner/ ./
 RUN set -e; mkdir -p /out; \
     build() { CGO_ENABLED=0 GOOS=$1 GOARCH=$2 go build -trimpath -ldflags "-s -w -X main.version=$VERSION" -o "/out/$3" .; }; \
-    build windows amd64 family-ai-runner-windows-x64.exe; \
-    build windows arm64 family-ai-runner-windows-arm64.exe; \
+    CGO_ENABLED=0 GOOS=windows GOARCH=amd64 go build -trimpath -tags tray -ldflags "-s -w -H=windowsgui -X main.version=$VERSION" -o /out/family-ai-runner-tray-windows-x64.exe .; \
+    CGO_ENABLED=0 GOOS=windows GOARCH=arm64 go build -trimpath -tags tray -ldflags "-s -w -H=windowsgui -X main.version=$VERSION" -o /out/family-ai-runner-tray-windows-arm64.exe .; \
     build linux amd64 family-ai-runner-linux-x64; \
     build linux arm64 family-ai-runner-linux-arm64; \
     build darwin arm64 family-ai-runner-macos; \
