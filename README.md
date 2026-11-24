@@ -91,12 +91,11 @@ The menu bar app backs up the data folder daily at 3 a.m. (14 copies kept, folde
 
 1. The admin enables *Coding on own computer* for the person.
 2. The person adds their computer under *Settings → Computers* and gets a key.
-3. Download the runner from the same page (Windows, macOS, Linux – a single program, nothing else to install) and start it with a double-click. On first start it asks for the server address, the key and the workspace folder and remembers them.
-   - Windows shows a SmartScreen warning the first time (unknown publisher): *More info → Run anyway*.
-   - macOS: `xattr -d com.apple.quarantine family-ai-runner-macos; chmod +x family-ai-runner-macos`, then `./family-ai-runner-macos`.
-4. *New chat → Coding on …*
+3. Download the runner app from the same page and start it: a taskbar icon on Windows, a menu-bar icon on macOS (Linux: a single terminal program). No terminal needed: connection status as an icon, address/key/folder entered in a window, "start at login", "ask before writing files" and "show log" in the menu/settings window. On first start it asks for the server address, the key and the workspace folder and remembers them. macOS: unzip, drag to Applications, start it; at the "not opened" block go once to System Settings → Privacy & Security → "Open Anyway" (the app is not notarized by Apple).
+   - Windows shows a SmartScreen warning the first time (unknown publisher): *More info → Run anyway*. (The Windows app has not been run on a real PC yet.)
+4. In any chat, click the `</>` button at the top to code on the computer (with several computers you pick one). Click it again to stop. In the chat list, `</>` with a green dot means the runner is connected.
 
-The runner only makes outgoing connections and opens no port. The AI may list, read and write files inside the workspace folder; nothing outside it is reachable through the file tools. **Every command** has to be confirmed in a dialog on the computer. Options: `--confirm-writes` (also ask before writing files), `--setup` (set up again), `--allow-all` (ask for nothing – not recommended).
+The runner only makes outgoing connections and opens no port. It signs off when closed (Ctrl+C, closing the window) and reconnects by itself within seconds after a server restart. The AI may list and read files inside the workspace folder; nothing outside it is reachable through the file tools. **Every command and every file write** (including saving a picture from the chat into the folder) has to be confirmed in a dialog on the computer. Optional, set in the runner app on that computer (never by the server): "approval in the chat instead of a popup" – then Allow / Deny buttons appear in the chat. Options: `--allow-writes` (write files without asking), `--setup` (set up again), `--allow-all` (ask for nothing – not recommended).
 
 Commands can technically reach the whole computer – that is why each one is confirmed. For children, a separate Windows account is a good idea.
 

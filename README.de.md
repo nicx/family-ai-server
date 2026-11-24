@@ -91,12 +91,11 @@ Die Menüleisten-App sichert den Datenordner täglich um 3 Uhr (14 Stände, Ordn
 
 1. Der Admin aktiviert für die Person *Programmieren auf eigenem Computer*.
 2. Die Person fügt unter *Einstellungen → Computer* ihren Rechner hinzu und erhält einen Schlüssel.
-3. Auf derselben Seite den Runner laden (Windows, macOS, Linux – ein einzelnes Programm, sonst nichts zu installieren) und per Doppelklick starten. Beim ersten Start fragt er nach der Serveradresse, Schlüssel und Arbeitsordner und merkt sie sich.
-   - Windows warnt beim ersten Start (unbekannter Herausgeber): *Weitere Informationen → Trotzdem ausführen*.
-   - macOS: `xattr -d com.apple.quarantine family-ai-runner-macos; chmod +x family-ai-runner-macos`, dann `./family-ai-runner-macos`.
-4. *Neuer Chat → Programmieren auf …* wählen.
+3. Auf derselben Seite die Runner-App laden und starten: Taskleistensymbol unter Windows, Menüleistensymbol unter macOS (Linux: ein einzelnes Terminal-Programm). Kein Terminal nötig: Verbindungsstatus als Symbol, Adresse/Schlüssel/Ordner in einem Fenster, „Beim Anmelden starten“ und „vor dem Schreiben nachfragen“ und „Protokoll anzeigen“ im Menü bzw. in den Einstellungen. Beim ersten Start fragt sie nach Serveradresse, Schlüssel und Arbeitsordner und merkt sie sich. macOS: ZIP entpacken, nach „Programme“ ziehen, starten; bei der Sperre („nicht geöffnet“) einmal Systemeinstellungen → Datenschutz & Sicherheit → „Trotzdem öffnen“ (die App ist nicht von Apple beglaubigt).
+   - Windows zeigt beim ersten Start eine SmartScreen-Warnung (unbekannter Herausgeber): *Weitere Informationen → Trotzdem ausführen*. (Die Windows-App wurde noch nicht auf einem echten PC ausgeführt.)
+4. In einem Chat oben auf das Symbol `</>` klicken, um auf dem Computer zu programmieren (bei mehreren Computern wählt man einen aus). Ein Klick auf das Symbol beendet es wieder. In der Chatliste zeigt `</>` mit grünem Punkt, dass der Runner verbunden ist.
 
-Der Runner baut nur ausgehende Verbindungen auf und öffnet keinen Port. Die KI darf Dateien im Arbeitsordner auflisten, lesen und schreiben; außerhalb ist über die Datei-Werkzeuge nichts erreichbar. **Jeder Befehl** muss am Computer per Dialog bestätigt werden. Optionen: `--confirm-writes` (auch vor dem Schreiben fragen), `--setup` (neu einrichten), `--allow-all` (nichts fragen – nicht empfohlen).
+Der Runner baut nur ausgehende Verbindungen auf und öffnet keinen Port. Beim Beenden (Strg+C, Fenster schließen) meldet er sich ab; nach einem Neustart des Servers verbindet er sich innerhalb weniger Sekunden selbst wieder. Die KI darf Dateien im Arbeitsordner auflisten und lesen; außerhalb ist über die Datei-Werkzeuge nichts erreichbar. **Jeder Befehl und jedes Schreiben von Dateien** (auch das Speichern eines Bildes aus dem Chat im Ordner) muss am Computer per Dialog bestätigt werden. Optional (nur in der Runner-App auf dem Computer einstellbar, nie vom Server): „Freigabe im Chat statt als Popup“ – dann erscheinen Erlauben/Ablehnen im Chat. Optionen: `--allow-writes` (Dateien ohne Nachfrage schreiben), `--setup` (neu einrichten), `--allow-all` (nichts fragen – nicht empfohlen).
 
 Befehle können technisch den ganzen Computer erreichen – deshalb wird jeder einzeln bestätigt. Für Kinder empfiehlt sich ein eigenes Windows-Konto.
 
