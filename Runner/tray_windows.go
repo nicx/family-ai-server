@@ -228,9 +228,12 @@ func editSettings(c Config) (Config, bool) {
 	for {
 		cmd := exec.Command("powershell.exe", "-NoProfile", "-NonInteractive", "-STA", "-EncodedCommand", base64.StdEncoding.EncodeToString(raw))
 		cmd.Env = append(os.Environ(), "FAI_SERVER="+c.Server, "FAI_TOKEN="+c.Token, "FAI_WS="+c.Workspace)
-		cmd.SysProcAttr = &syscall.SysProcAttr{HideWindow: true}
+		cmd.SysProcAttr = &syscall.SysProcAttr{CreationFlags: 0x08000000} // CREATE_NO_WINDOW: keine Konsole, die Dialoge bleiben sichtbar
+		var stderr strings.Builder
+		cmd.Stderr = &stderr
 		out, err := cmd.Output()
 		if err != nil {
+			writeLog("Einstellungsdialog beendet: " + err.Error() + " " + strings.TrimSpace(stderr.String()))
 			return c, false
 		}
 		lines := strings.Split(strings.ReplaceAll(string(out), "\r", ""), "\n")
@@ -395,15 +398,9 @@ func trayMain(c Config, forceSetup bool) {
 		}
 	}
 
-	if forceSetup || validate(c) != "" {
-		n, ok := editSettings(c)
-		if !ok {
-			return
-		}
-		c = n
-		_ = saveConfig(c)
-	}
+	needSetup := forceSetup || validate(c) != ""
 	trayConfig = c
+	writeLog("Tray-App gestartet (Einrichtung nötig: " + map[bool]string{true: "ja", false: "nein"}[needSetup] + ")")
 
 	hInst, _, _ := getModuleHandle.Call(0)
 	for i := range trayIcons {
@@ -412,14 +409,36 @@ func trayMain(c Config, forceSetup bool) {
 	class := u16("FamilyAIRunnerTray")
 	wc := wndClassEx{wndProc: syscall.NewCallback(wndProc), instance: hInst, className: class}
 	wc.size = uint32(unsafe.Sizeof(wc))
-	registerClassEx.Call(uintptr(unsafe.Pointer(&wc)))
-	hwnd, _, _ := createWindowEx.Call(0, uintptr(unsafe.Pointer(class)), uintptr(unsafe.Pointer(u16("Family AI Runner"))), 0, 0, 0, 0, 0, 0, 0, hInst, 0)
+	if r, _, e := registerClassEx.Call(uintptr(unsafe.Pointer(&wc))); r == 0 {
+		writeLog("RegisterClassEx fehlgeschlagen: " + e.Error())
+	}
+	hwnd, _, e := createWindowEx.Call(0, uintptr(unsafe.Pointer(class)), uintptr(unsafe.Pointer(u16("Family AI Runner"))), 0, 0, 0, 0, 0, 0, 0, hInst, 0)
+	if hwnd == 0 {
+		writeLog("CreateWindowEx fehlgeschlagen: " + e.Error())
+	}
 	trayMu.Lock()
 	trayHwnd = hwnd
 	trayMu.Unlock()
+	if needSetup {
+		setTray(0, "Einrichtung nötig – Rechtsklick, Einstellungen")
+	}
 	notify(nimAdd)
 
-	go serve(c)
+	if needSetup {
+		// Das Symbol ist schon da; die Eingabefenster kommen im Hintergrund.
+		go func() {
+			n, ok := editSettings(c)
+			if !ok {
+				writeLog("Einrichtung abgebrochen")
+				setTray(2, "nicht eingerichtet – Rechtsklick, Einstellungen")
+				return
+			}
+			_ = saveConfig(n)
+			restart()
+		}()
+	} else {
+		go serve(c)
+	}
 
 	var m msg
 	for {
