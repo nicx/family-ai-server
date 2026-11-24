@@ -9,8 +9,6 @@ One shared web app, one OpenRouter key per person, parental view for children, v
 
 A simple, private AI for the whole family: one Mac runs the server, everyone uses the same modern web app – on the iPhone as an app on the home screen, on a Mac or Windows PC in the browser. Models come from [OpenRouter](https://openrouter.ai). The AI is called **Lumi** by default and can be renamed per family.
 
-> Status: early version (0.1). Used daily by one family. Passkeys work; the Windows runner app is cross-compiled and unit-tested but has not been verified on a real Windows PC yet.
-
 <p align="center"><img src="docs/screenshots/chat.png" width="760" alt="Chat in the browser"></p>
 
 <p align="center">

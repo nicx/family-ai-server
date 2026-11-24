@@ -9,8 +9,6 @@ Eine gemeinsame Web-App, ein OpenRouter-Schlüssel pro Person, Eltern-Einsicht f
 
 Family AI Server ist eine schlanke Familien-KI: Ein Mac im Haus betreibt den Server, alle in der Familie nutzen dieselbe moderne Web-App – auf dem iPhone als App auf dem Home-Bildschirm, am Mac oder Windows-PC im Browser. Die Modelle kommen über [OpenRouter](https://openrouter.ai). Die KI heißt standardmäßig **Lumi** und lässt sich pro Familie umbenennen.
 
-> Status: frühe Version (0.1). Wird täglich von einer Familie genutzt. Passkeys funktionieren; die Windows-Runner-App ist cross-kompiliert und getestet, aber noch nicht auf einem echten Windows-PC verifiziert.
-
 <p align="center"><img src="docs/screenshots/chat.png" width="760" alt="Chat im Browser"></p>
 
 <p align="center">
