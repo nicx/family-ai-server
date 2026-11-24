@@ -164,6 +164,8 @@ label.field > span { display: block; font-size: 13px; color: var(--muted); margi
 .meta-line { font-size: 12px; color: var(--muted); margin-top: 4px; }
 .approval { border: 1px solid var(--accent); border-radius: 12px; padding: 12px; margin: 8px 0; background: var(--panel, transparent); }
 .approval-title { font-weight: 600; margin-bottom: 6px; }
+.approval.done { padding: 8px 12px; }
+.approval.done .approval-title { margin: 0; }
 .approval-text { margin: 0 0 10px; max-height: 220px; overflow: auto; white-space: pre-wrap; word-break: break-word; font-size: 13px; }
 .status-line { font-size: 13px; color: var(--muted); display: flex; align-items: center; gap: 8px; margin: 4px 0; }
 .status-line::before { content: ""; width: 6px; height: 6px; border-radius: 50%; background: var(--accent); flex: none; }

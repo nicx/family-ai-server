@@ -66,6 +66,7 @@ function approvalCard(ev) {
   const card = h("div", { class: "approval" });
   const answer = async (allow) => {
     card.querySelectorAll("button").forEach((b) => (b.disabled = true));
+    card.classList.add("done");
     try {
       await api("POST", `approvals/${ev.id}`, { allow });
       card.replaceChildren(h("div", { class: "approval-title" }, t(allow ? "approvalAllowed" : "approvalDenied"), ": ", t("tool_" + ev.tool)));
