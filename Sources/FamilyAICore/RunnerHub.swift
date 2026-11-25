@@ -179,6 +179,15 @@ public actor RunnerHub {
 
     public func deviceId(forJob id: String) -> String? { jobDevice[id] }
 
+    /// Questions the runner has asked that nobody has answered yet. Lets every open window of the web app show the
+    /// card, not only the one that started the answer (switching browser/app must not lose it).
+    public func openApprovals() -> [(deviceId: String, job: Job)] {
+        asked.sorted().compactMap { id in
+            guard decisions[id] == nil, let job = jobs[id], let dev = jobDevice[id] else { return nil }
+            return (dev, job)
+        }
+    }
+
     /// Text for the approval card in the chat.
     public static func describe(_ job: Job) -> (title: String, text: String) {
         let a = job.args

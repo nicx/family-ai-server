@@ -155,6 +155,9 @@ struct FamilyAICoreTests {
         XCTAssertEqual(again, "pending")
         try? await Task.sleep(nanoseconds: 100_000_000)
         XCTAssertEqual(await cards.count, 1, "card is shown exactly once")
+        let open = await hub.openApprovals()
+        XCTAssertEqual(open.count, 1, "asked job is listed for other windows")
+        XCTAssertEqual(open.first?.deviceId, "a")
         let stranger = await hub.ask(deviceId: "b", jobId: job.id, wait: 0.1)
         XCTAssertEqual(stranger, "deny")
         Task { try? await Task.sleep(nanoseconds: 200_000_000); _ = await hub.decide(jobId: job.id, allow: true) }
@@ -162,6 +165,8 @@ struct FamilyAICoreTests {
         XCTAssertEqual(allowed, "allow")
         let twice = await hub.decide(jobId: job.id, allow: false)
         check(!twice, "decision cannot be changed")
+        let decided = await hub.openApprovals()
+        check(decided.isEmpty, "answered job is no longer open")
         _ = await hub.complete(deviceId: "a", jobId: job.id, result: .init(ok: true, output: "x"))
         _ = await result
         let gone = await hub.ask(deviceId: "a", jobId: job.id, wait: 0.1)

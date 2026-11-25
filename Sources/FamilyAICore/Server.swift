@@ -909,6 +909,17 @@ public final class FamilyServer: Sendable {
             let d = try await store.addDevice(userId: s.user.id, name: String(name.prefix(60)), tokenHash: Auth.sha256(token))
             return HTTP.json(["device": HTTP.toJSON(d), "token": token])
         }
+        // Open approval questions of the person's computers (every window shows them, see approvalCard in app.js).
+        api.get("approvals") { [self] request, _ in
+            let s = try await session(request)
+            var out: [[String: Any]] = []
+            for (deviceId, job) in await runner.openApprovals() {
+                guard let dev = try await store.device(id: deviceId), dev.userId == s.user.id else { continue }
+                let d = RunnerHub.describe(job)
+                out.append(["id": job.id, "tool": job.tool, "title": d.title, "text": d.text])
+            }
+            return HTTP.json(out)
+        }
         // Answer from the chat to a runner's approval question (only the owner of the computer).
         api.post("approvals/:id") { [self] request, context in
             let s = try await session(request)
@@ -931,6 +942,11 @@ public final class FamilyServer: Sendable {
             try await store.touchDevice(id: dev.id, workspace: q.get("workspace"), platform: q.get("platform"))
             guard let job = await runner.poll(deviceId: dev.id) else { return Response(status: .noContent) }
             return HTTP.encodable(job)
+        }
+        // Side-effect-free check for the runner apps' "test connection" button (address + key valid).
+        api.get("runner/ping") { [self] request, _ in
+            _ = try await device(request)
+            return HTTP.ok()
         }
         api.post("runner/bye") { [self] request, _ in
             let dev = try await device(request)

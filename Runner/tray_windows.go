@@ -7,7 +7,6 @@
 package main
 
 import (
-	"encoding/base64"
 	"os"
 	"os/exec"
 	"runtime"
@@ -186,59 +185,6 @@ func trayError(msg string) {
 
 func messageBox(title, text string, flags uintptr) {
 	messageBoxW.Call(0, uintptr(unsafe.Pointer(u16(text))), uintptr(unsafe.Pointer(u16(title))), flags|0x10000)
-}
-
-// ---------- settings dialog (PowerShell, no window of its own) ----------
-
-const settingsScript = `
-Add-Type -AssemblyName Microsoft.VisualBasic,System.Windows.Forms
-[Console]::OutputEncoding = [Text.Encoding]::UTF8
-$s = [Microsoft.VisualBasic.Interaction]::InputBox("Adresse des Servers, z. B. https://ai.example.org", "Family AI Runner", $env:FAI_SERVER)
-if (-not $s) { exit 1 }
-$t = [Microsoft.VisualBasic.Interaction]::InputBox("Geräteschlüssel (Web-App: Einstellungen, Computer; beginnt mit fai_dev_)", "Family AI Runner", $env:FAI_TOKEN)
-if (-not $t) { exit 1 }
-$d = New-Object System.Windows.Forms.FolderBrowserDialog
-$d.Description = "Arbeitsordner, in dem die KI arbeiten darf"
-if ($env:FAI_WS) { $d.SelectedPath = $env:FAI_WS }
-$f = New-Object System.Windows.Forms.Form
-$f.TopMost = $true
-if ($d.ShowDialog($f) -ne 'OK') { exit 1 }
-"$s"
-"$t"
-"$($d.SelectedPath)"
-`
-
-// editSettings asks for the three values until they are valid or the person cancels.
-func editSettings(c Config) (Config, bool) {
-	enc := utf16.Encode([]rune(settingsScript))
-	raw := make([]byte, 0, len(enc)*2)
-	for _, u := range enc {
-		raw = append(raw, byte(u), byte(u>>8))
-	}
-	for {
-		cmd := exec.Command("powershell.exe", "-NoProfile", "-NonInteractive", "-STA", "-EncodedCommand", base64.StdEncoding.EncodeToString(raw))
-		cmd.Env = append(os.Environ(), "FAI_SERVER="+c.Server, "FAI_TOKEN="+c.Token, "FAI_WS="+c.Workspace)
-		cmd.SysProcAttr = &syscall.SysProcAttr{CreationFlags: 0x08000000} // CREATE_NO_WINDOW: keine Konsole, die Dialoge bleiben sichtbar
-		var stderr strings.Builder
-		cmd.Stderr = &stderr
-		out, err := cmd.Output()
-		if err != nil {
-			writeLog("Einstellungsdialog beendet: " + err.Error() + " " + strings.TrimSpace(stderr.String()))
-			return c, false
-		}
-		lines := strings.Split(strings.ReplaceAll(string(out), "\r", ""), "\n")
-		if len(lines) < 3 {
-			return c, false
-		}
-		n := c
-		n.Server, n.Token, n.Workspace = strings.TrimSpace(lines[0]), strings.TrimSpace(lines[1]), strings.TrimSpace(lines[2])
-		if problem := validate(n); problem != "" {
-			messageBox("Family AI Runner", problem, 0x30)
-			c = n
-			continue
-		}
-		return n, true
-	}
 }
 
 func validate(c Config) string {
@@ -439,4 +385,20 @@ func trayMain(c Config, forceSetup bool) {
 		translateMsg.Call(uintptr(unsafe.Pointer(&m)))
 		dispatchMessage.Call(uintptr(unsafe.Pointer(&m)))
 	}
+}
+
+// trayReauth: the server no longer accepts the saved device key (device deleted, new server, key rotated).
+// Instead of quitting with a hint about command-line options, open the settings window with the key cleared.
+func trayReauth(c Config) bool {
+	logf("Geräteschlüssel wird vom Server nicht akzeptiert – Einstellungen werden geöffnet.")
+	setTray(2, "Schlüssel ungültig – Rechtsklick, Einstellungen")
+	go func() {
+		messageBox("Family AI Runner", "Der Server akzeptiert den gespeicherten Geräteschlüssel nicht (Gerät gelöscht oder Schlüssel erneuert).\n\nBitte einen neuen eintragen: Web-App → Einstellungen → Computer.", 0x30)
+		c.Token = ""
+		if n, ok := editSettings(c); ok {
+			_ = saveConfig(n)
+			restart()
+		}
+	}()
+	return true
 }

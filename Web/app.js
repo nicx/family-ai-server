@@ -56,14 +56,30 @@ async function checkBuild(force = false) {
   try {
     const i = await fetch("/api/info", { cache: "no-store" }).then((r) => r.json());
     if (!i.build || i.build === BUILD) return;
-    const busy = document.querySelector(".voice-overlay") || els?.input?.value;
+    const busy = document.querySelector(".voice-overlay") || els?.input?.value || S?.streaming; // never reload while an answer (or an approval) is running
     if (force || !busy) location.reload();
   } catch {}
 }
 document.addEventListener("visibilitychange", () => { if (document.visibilityState === "visible") checkBuild(); });
+// Open approvals are fetched from the server, so every window shows them (the stream only reaches the window
+// that started the answer). Cards that were answered elsewhere are marked as no longer valid.
+async function showPendingApprovals() {
+  if (document.hidden || !S.me || !S.chat || S.readOnly) return;
+  const list = await api("GET", "approvals").catch(() => null);
+  if (!list) return;
+  const open = new Set(list.map((a) => a.id));
+  els.inner.querySelectorAll(".approval[data-approval]:not(.done)").forEach((c) => {
+    if (!open.has(c.getAttribute("data-approval"))) { c.classList.add("done"); c.replaceChildren(h("div", { class: "approval-title" }, t("approvalGone"))); }
+  });
+  for (const a of list) {
+    if (els.inner.querySelector(`[data-approval="${a.id}"]`)) continue;
+    els.inner.append(approvalCard(a));
+    scrollDown(true);
+  }
+}
 // Runner asks for approval in the chat (instead of a popup on the computer).
 function approvalCard(ev) {
-  const card = h("div", { class: "approval" });
+  const card = h("div", { class: "approval", "data-approval": ev.id });
   const answer = async (allow) => {
     card.querySelectorAll("button").forEach((b) => (b.disabled = true));
     card.classList.add("done");
@@ -325,7 +341,8 @@ async function startApp() {
   await loadChats();
   if (p.code) {
     setInterval(refreshDevices, 5000);
-    document.addEventListener("visibilitychange", refreshDevices);
+    setInterval(showPendingApprovals, 3000);
+    document.addEventListener("visibilitychange", () => { refreshDevices(); showPendingApprovals(); });
   }
   window.addEventListener("hashchange", route);
   route();

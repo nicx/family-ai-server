@@ -495,6 +495,9 @@ func serve(c Config) {
 	for {
 		status, data, err := client.do("GET", "/api/runner/poll"+q, nil, 70*time.Second)
 		if errors.Is(err, errUnauthorized) {
+			if trayReauth(c) { // Taskleisten-App: Einstellungen öffnen statt beenden
+				return
+			}
 			fatal("Geräteschlüssel ungültig, Gerät gelöscht oder Programmieren für diese Person ausgeschaltet. Neu einrichten mit --setup.")
 		}
 		if err != nil || status >= 400 {
