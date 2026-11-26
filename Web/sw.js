@@ -1,6 +1,6 @@
 // Minimal service worker: makes the app installable and caches the static shell.
 // API calls always go to the network (never cached).
-const CACHE = "family-ai-shell-v2";
+const CACHE = "family-ai-shell-v3";
 const SHELL = ["/", "/icon-192.png", "/manifest.webmanifest"];
 
 self.addEventListener("install", (e) => {

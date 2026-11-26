@@ -68,6 +68,7 @@ const (
 	idAutostart    = 3
 	idQuit         = 4
 	idStatus       = 5
+	idUpdate       = 11
 	idChat         = 10
 	idLog          = 9
 	idWrites       = 6
@@ -244,6 +245,7 @@ func showMenu(hwnd uintptr) {
 	add(mfString, idSettings, "Einstellungen …")
 	add(mfString, idFolder, "Arbeitsordner öffnen")
 	add(mfString, idLog, "Protokoll anzeigen")
+	add(mfString, idUpdate, "Nach Updates suchen")
 	add(mfSeparator, 0, "")
 	add(checked(!trayConfig.AllowWrites), idWrites, "Auch vor dem Schreiben von Dateien nachfragen")
 	add(checked(trayConfig.ApproveInChat), idChat, "Freigabe im Chat statt als Popup")
@@ -286,6 +288,8 @@ func wndProc(hwnd, message, wParam, lParam uintptr) uintptr {
 			n := trayConfig
 			n.AllowWrites = !n.AllowWrites
 			go func() { _ = saveConfig(n); restart() }()
+		case idUpdate:
+			triggerUpdateCheck()
 		case idLog:
 			writeLog("Protokoll geöffnet") // makes sure the file exists
 			_ = exec.Command("notepad.exe", logPath()).Start()
@@ -311,6 +315,10 @@ func wndProc(hwnd, message, wParam, lParam uintptr) uintptr {
 	}
 	r, _, _ := defWindowProc.Call(hwnd, message, wParam, lParam)
 	return r
+}
+
+func init() {
+	updateReport = func(msg string) { go messageBox("Family AI Runner", msg, 0x40) } // MB_ICONINFORMATION
 }
 
 // restart starts a fresh copy (it waits for the single-instance lock) and signs off this one.

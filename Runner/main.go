@@ -55,6 +55,7 @@ type Config struct {
 	ApproveInChat bool   `json:"approveInChat,omitempty"` // ask in the web chat instead of a popup (set here, never by the server)
 	AllowAll      bool   `json:"allowAll,omitempty"`
 	Insecure      bool   `json:"insecure,omitempty"`
+	NoAutoUpdate  bool   `json:"noAutoUpdate,omitempty"` // default: the runner updates itself from the server
 }
 
 type Job struct {
@@ -332,6 +333,14 @@ func describe(job Job, ws *Workspace) (string, string) {
 		return "Bild speichern", head + "\nDatei: " + a["path"] + fmt.Sprintf("\nGröße: ca. %d KB", len(a["data"])*3/4/1024)
 	case "read_file":
 		return "Datei lesen", head + "\nDatei: " + a["path"]
+	case "search_files":
+		return "Dateien durchsuchen", head + "\nSuche: " + firstNonEmpty(a["query"], a["name"])
+	case "make_dir":
+		return "Ordner anlegen", head + "\nOrdner: " + a["path"]
+	case "move_file":
+		return "Datei verschieben", head + "\nVon: " + a["from"] + "\nNach: " + a["to"]
+	case "delete_file":
+		return "Datei löschen", head + "\nDatei: " + a["path"]
 	default:
 		p := a["path"]
 		if p == "" {
@@ -348,7 +357,9 @@ func needsConfirmation(tool string, c Config) bool {
 	switch tool {
 	case "run_command":
 		return true
-	case "write_file", "save_image":
+	case "delete_file":
+		return true // deleting is always asked, even with AllowWrites
+	case "write_file", "save_image", "make_dir", "move_file":
 		return !c.AllowWrites
 	default:
 		return false
@@ -371,11 +382,12 @@ func run(job Job, ws *Workspace, c Config, client *Client) (bool, string) {
 			return false, "Die Person hat die Aktion abgelehnt."
 		}
 	} else {
-		logf("%s: %s", title, firstNonEmpty(job.Args["path"], job.Args["command"], "."))
+		logf("%s: %s", title, firstNonEmpty(job.Args["path"], job.Args["command"], job.Args["query"], job.Args["name"], job.Args["from"], "."))
 	}
 	tools := map[string]func(map[string]string) (string, error){
 		"list_files": ws.ListFiles, "read_file": ws.ReadFile,
 		"write_file": ws.WriteFile, "run_command": ws.RunCommand, "save_image": ws.SaveImage,
+		"search_files": ws.SearchFiles, "make_dir": ws.MakeDir, "move_file": ws.MoveFile, "delete_file": ws.DeleteFile,
 	}
 	fn, ok := tools[job.Tool]
 	if !ok {
@@ -489,6 +501,9 @@ func serve(c Config) {
 		shutdown()
 	}()
 
+	watchUpdateSignal()
+	go updateLoop(c, client)
+
 	backoff := 2 * time.Second
 	connected := false
 	warned := false
@@ -527,7 +542,9 @@ func serve(c Config) {
 			logf("Unverständliche Antwort vom Server, ignoriert.")
 			continue
 		}
+		jobMu.Lock()
 		ok, out := run(job, ws, c, client)
+		jobMu.Unlock()
 		for attempt := 0; attempt < 3; attempt++ {
 			if _, _, err := client.do("POST", "/api/runner/result", map[string]any{"jobId": job.ID, "ok": ok, "output": out}, 30*time.Second); err == nil {
 				break

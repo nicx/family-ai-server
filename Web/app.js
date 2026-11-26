@@ -77,6 +77,33 @@ async function showPendingApprovals() {
     scrollDown(true);
   }
 }
+// A second window (browser tab, installed app) learns about new messages by asking the server, because the answer
+// stream only reaches the window that started it. Skipped while this window streams or waits for an approval.
+// The answer keeps running on the server when the window leaves the chat; this shows it until it is done.
+function setRunningIndicator(on) {
+  const cur = els.inner.querySelector(".running-indicator");
+  if (!on) { cur?.remove(); return; }
+  if (cur) return;
+  els.inner.append(h("div", { class: "msg assistant running-indicator" },
+    h("img", { class: "ai-avatar", src: "/icon-192.png", alt: "" }),
+    h("div", { class: "bubble" }, h("div", { class: "typing" }, h("span"), h("span"), h("span")), h("div", { class: "status-line" }, t("stillWorking")))));
+  scrollDown(true);
+}
+async function syncChat() {
+  if (document.hidden || !S.me || !S.chat || S.readOnly || S.streaming) return;
+  if (els.inner.querySelector(".approval:not(.done)")) return;
+  const id = S.chat.id;
+  const data = await api("GET", `chats/${id}`).catch(() => null);
+  if (!data || S.streaming || S.chat?.id !== id) return;
+  const sig = (list) => list.map((m) => m.id).join(",");
+  if (sig(data.messages) !== sig(S.messages)) {
+    S.messages = data.messages;
+    if (data.chat.title !== S.chat.title) { S.chat.title = data.chat.title; els.title.textContent = data.chat.title; }
+    renderMessages();
+    loadChats();
+  }
+  setRunningIndicator(!!data.running);
+}
 // Runner asks for approval in the chat (instead of a popup on the computer).
 function approvalCard(ev) {
   const card = h("div", { class: "approval", "data-approval": ev.id });
@@ -342,7 +369,8 @@ async function startApp() {
   if (p.code) {
     setInterval(refreshDevices, 5000);
     setInterval(showPendingApprovals, 3000);
-    document.addEventListener("visibilitychange", () => { refreshDevices(); showPendingApprovals(); });
+    setInterval(syncChat, 4000);
+    document.addEventListener("visibilitychange", () => { refreshDevices(); showPendingApprovals(); syncChat(); });
   }
   window.addEventListener("hashchange", route);
   route();
@@ -554,6 +582,7 @@ async function openChat(id) {
   els.modelSelect.disabled = S.readOnly;
   els.modelSelect.classList.toggle("hidden", S.models.length < 2 && !S.readOnly);
   renderMessages();
+  setRunningIndicator(!!data.running);
   renderChatList();
   updateCodeBtn();
 }

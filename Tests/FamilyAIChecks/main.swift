@@ -37,6 +37,7 @@ struct FamilyAICoreTests {
         t.testMailCurlConfig(); t.testSettingsDefaults(); t.testPrivacy(); t.testDocuments(); t.testEncryptedKeyStore(); t.testTrustedProxies(); t.testSetupCode(); t.testBudgetStatus()
         do { try await t.testStoreRoundtrip() } catch { check(false, "Store: \(error)") }
         await t.testRunnerHubRoundtrip()
+        t.testRunnerDescribeNewTools()
         await t.testRunnerApprovalInChat()
         await t.testStreaming()
         print("\(checks) Prüfungen, \(failures) Fehler")
@@ -140,6 +141,17 @@ struct FamilyAICoreTests {
         // Poll that runs out normally (longer than the 6 s window): the gap before the next poll must not look offline.
         _ = await hub.poll(deviceId: "d7", timeout: 6.5)
         check(await hub.isOnline("d7"), "no offline gap after a poll timed out")
+    }
+
+    func testRunnerDescribeNewTools() {
+        func d(_ tool: String, _ a: [String: String]) -> (title: String, text: String) {
+            let json = try! JSONSerialization.data(withJSONObject: ["id": "j", "tool": tool, "args": a])
+            return RunnerHub.describe(try! JSONDecoder().decode(RunnerHub.Job.self, from: json))
+        }
+        check(d("move_file", ["from": "a.txt", "to": "b/a.txt"]).text == "a.txt → b/a.txt", "move_file card text")
+        check(d("delete_file", ["path": "x.txt"]).title == "Datei löschen", "delete_file card title")
+        check(d("make_dir", ["path": "neu"]).title == "Ordner anlegen", "make_dir card title")
+        check(d("search_files", ["name": "*.py"]).text == "*.py", "search_files card text")
     }
 
     func testRunnerApprovalInChat() async {

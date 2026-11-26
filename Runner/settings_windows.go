@@ -65,13 +65,13 @@ const (
 
 // settingsUI is the state of the one settings window (only one can be open).
 type settingsUI struct {
-	hwnd                                      uintptr
-	server, token, folder, chkWrites, chkChat uintptr
-	status, btnTest                           uintptr
-	font                                      uintptr
-	base, result                              Config
-	ok                                        bool
-	testText                                  string
+	hwnd                                                 uintptr
+	server, token, folder, chkWrites, chkChat, chkUpdate uintptr
+	status, btnTest                                      uintptr
+	font                                                 uintptr
+	base, result                                         Config
+	ok                                                   bool
+	testText                                             string
 }
 
 var (
@@ -132,7 +132,7 @@ func editSettings(c Config) (Config, bool) {
 	defer deleteObject.Call(ui.font)
 
 	// Window sized so that the client area is 480 x 322, centred on the screen.
-	const cw, ch = 480, 322
+	const cw, ch = 480, 348
 	style := uintptr(wsCaptionSys)
 	rc := struct{ l, t, r, b int32 }{0, 0, cw, ch}
 	adjustWindow.Call(uintptr(unsafe.Pointer(&rc)), style, 0, wsExTopmost)
@@ -166,12 +166,14 @@ func editSettings(c Config) (Config, bool) {
 	ui.control("BUTTON", "Durchsuchen …", wsTabstop, 0, 364, 141, 100, 26, idBrowse)
 	ui.chkWrites = ui.control("BUTTON", "Auch vor dem Schreiben von Dateien nachfragen", wsTabstop|bsAutoCheck, 0, 16, 182, 448, 20, 121)
 	ui.chkChat = ui.control("BUTTON", "Freigabe im Chat statt als Popup auf diesem Computer", wsTabstop|bsAutoCheck, 0, 16, 206, 448, 20, 122)
+	ui.chkUpdate = ui.control("BUTTON", "Automatisch aktualisieren (neue Version vom Server holen)", wsTabstop|bsAutoCheck, 0, 16, 230, 448, 20, 123)
 	setCheck(ui.chkWrites, !c.AllowWrites)
 	setCheck(ui.chkChat, c.ApproveInChat)
-	ui.btnTest = ui.control("BUTTON", "Verbindung testen", wsTabstop, 0, 16, 240, 140, 26, idTest)
-	ui.status = ui.control("STATIC", "", 0, 0, 168, 238, 296, 34, 0)
-	ui.control("BUTTON", "Speichern", wsTabstop|bsDefPush, 0, 284, 284, 88, 28, idOK)
-	ui.control("BUTTON", "Abbrechen", wsTabstop, 0, 376, 284, 88, 28, idCancel)
+	setCheck(ui.chkUpdate, !c.NoAutoUpdate)
+	ui.btnTest = ui.control("BUTTON", "Verbindung testen", wsTabstop, 0, 16, 266, 140, 26, idTest)
+	ui.status = ui.control("STATIC", "", 0, 0, 168, 264, 296, 34, 0)
+	ui.control("BUTTON", "Speichern", wsTabstop|bsDefPush, 0, 284, 310, 88, 28, idOK)
+	ui.control("BUTTON", "Abbrechen", wsTabstop, 0, 376, 310, 88, 28, idCancel)
 
 	showWindow.Call(hwnd, 5) // SW_SHOW
 	setForeground.Call(hwnd)
@@ -233,6 +235,7 @@ func (ui *settingsUI) values() Config {
 	n.Server, n.Token, n.Workspace = getText(ui.server), getText(ui.token), getText(ui.folder)
 	n.AllowWrites = !isChecked(ui.chkWrites)
 	n.ApproveInChat = isChecked(ui.chkChat)
+	n.NoAutoUpdate = !isChecked(ui.chkUpdate)
 	return n
 }
 

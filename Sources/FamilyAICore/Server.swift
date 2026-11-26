@@ -42,6 +42,7 @@ public final class FamilyServer: Sendable {
     /// One-time code for the first admin (nil if not required or already set up).
     let setupCode: String?
     let chatLimiter = RateLimiter(limit: 200, window: 3600)
+    let runningChats = RunningChats()
     let challenges = ChallengeStore()
     public let version: String
     let assetVersion = String(Int(Date().timeIntervalSince1970), radix: 36)
@@ -456,7 +457,7 @@ public final class FamilyServer: Sendable {
             let msgs = try await store.messages(chatId: chat.id)
             let owner = chat.userId == s.user.id ? s.user.displayName : (try await store.user(id: chat.userId))?.displayName ?? ""
             return HTTP.json(["chat": HTTP.toJSON(chat), "messages": HTTP.toJSON(msgs), "readOnly": chat.userId != s.user.id,
-                              "ownerName": owner])
+                              "ownerName": owner, "running": await runningChats.contains(chat.id)])
         }
 
         api.patch("chats/:id") { [self] request, context in
@@ -535,13 +536,16 @@ public final class FamilyServer: Sendable {
         let (stream, cont) = AsyncStream<String>.makeStream()
         let engine = self.engine
         let store = self.store
+        let running = self.runningChats
         Task.detached {
+            await running.begin(chat.id)
             if let userMessage {
                 cont.yield(Self.sse(["t": "user", "message": HTTP.toJSON(userMessage)]))
             }
             let final = await engine.respond(user: user, chat: chat) { ev in
                 cont.yield(Self.sse(ev.json))
             }
+            await running.end(chat.id)
             if let final { cont.yield(Self.sse(ChatEvent.done(final).json)) }
             if makeTitle, let first = userMessage?.content, !first.isEmpty,
                let title = await engine.makeTitle(user: user, chat: chat, firstMessage: first),
@@ -1016,4 +1020,16 @@ struct ErrorMiddleware: RouterMiddleware {
             return HTTP.json(["error": "\(error)"], status: .internalServerError)
         }
     }
+}
+
+/// Chats whose answer is being generated right now. The answer runs detached on the server, so a window that left the
+/// chat (or a second window) asks this to show "still working" instead of an apparently idle chat.
+actor RunningChats {
+    private var counts: [String: Int] = [:]
+    func begin(_ id: String) { counts[id, default: 0] += 1 }
+    func end(_ id: String) {
+        let n = (counts[id] ?? 1) - 1
+        if n <= 0 { counts.removeValue(forKey: id) } else { counts[id] = n }
+    }
+    func contains(_ id: String) -> Bool { counts[id] != nil }
 }

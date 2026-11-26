@@ -5,6 +5,7 @@ import (
 	"encoding/base64"
 	"os"
 	"path/filepath"
+	"runtime"
 	"strings"
 	"testing"
 )
@@ -159,5 +160,133 @@ func TestSaveImage(t *testing.T) {
 	}
 	if !needsConfirmation("save_image", Config{}) || needsConfirmation("save_image", Config{AllowWrites: true}) {
 		t.Fatal("save_image is confirmed like write_file")
+	}
+}
+
+func TestSearchFiles(t *testing.T) {
+	ws := newWS(t)
+	ws.WriteFile(map[string]string{"path": "src/a.go", "content": "package a\n// TODO: Fix das\n"})
+	ws.WriteFile(map[string]string{"path": "src/b.txt", "content": "nichts\n"})
+	ws.WriteFile(map[string]string{"path": "node_modules/x.go", "content": "todo hier\n"})
+	if err := os.WriteFile(filepath.Join(ws.Root, "bin.dat"), []byte("todo\x00\x01"), 0o644); err != nil {
+		t.Fatal(err)
+	}
+	got, err := ws.SearchFiles(map[string]string{"query": "todo"})
+	if err != nil || got != "src/a.go:2: // TODO: Fix das" {
+		t.Fatalf("content search: %q %v", got, err)
+	}
+	got, _ = ws.SearchFiles(map[string]string{"name": "*.GO"})
+	if got != "src/a.go" {
+		t.Fatalf("name search: %q", got)
+	}
+	got, _ = ws.SearchFiles(map[string]string{"query": "gibtsnicht"})
+	if got != "Keine Treffer." {
+		t.Fatalf("no hit: %q", got)
+	}
+	if _, err := ws.SearchFiles(map[string]string{}); err == nil {
+		t.Fatal("empty search must fail")
+	}
+	if _, err := ws.SearchFiles(map[string]string{"query": "x", "path": "../"}); err == nil {
+		t.Fatal("search outside must fail")
+	}
+}
+
+func TestMakeMoveDelete(t *testing.T) {
+	ws := newWS(t)
+	if _, err := ws.MakeDir(map[string]string{"path": "a/b"}); err != nil {
+		t.Fatal(err)
+	}
+	if _, err := ws.MakeDir(map[string]string{"path": "."}); err == nil {
+		t.Fatal("root as name must fail")
+	}
+	ws.WriteFile(map[string]string{"path": "a/x.txt", "content": "1"})
+	ws.WriteFile(map[string]string{"path": "y.txt", "content": "2"})
+	if _, err := ws.MoveFile(map[string]string{"from": "a/x.txt", "to": "a/b/z.txt"}); err != nil {
+		t.Fatal(err)
+	}
+	if _, err := os.Stat(filepath.Join(ws.Root, "a/b/z.txt")); err != nil {
+		t.Fatal("moved file missing")
+	}
+	if _, err := ws.MoveFile(map[string]string{"from": "y.txt", "to": "a/b/z.txt"}); err == nil {
+		t.Fatal("move must not overwrite")
+	}
+	if _, err := ws.MoveFile(map[string]string{"from": "a", "to": "a/b/c"}); err == nil {
+		t.Fatal("folder into itself must fail")
+	}
+	if _, err := ws.MoveFile(map[string]string{"from": "y.txt", "to": "../out.txt"}); err == nil {
+		t.Fatal("move outside must fail")
+	}
+	if _, err := ws.DeleteFile(map[string]string{"path": "a"}); err == nil {
+		t.Fatal("non-empty folder must not be deleted")
+	}
+	if _, err := ws.DeleteFile(map[string]string{"path": "."}); err == nil {
+		t.Fatal("workspace must not be deleted")
+	}
+	if _, err := ws.DeleteFile(map[string]string{"path": "a/b/z.txt"}); err != nil {
+		t.Fatal(err)
+	}
+	if _, err := ws.DeleteFile(map[string]string{"path": "a/b"}); err != nil {
+		t.Fatal("empty folder should be deletable:", err)
+	}
+	if _, err := ws.DeleteFile(map[string]string{"path": "nope"}); err == nil {
+		t.Fatal("missing file must fail")
+	}
+}
+
+func TestNewToolConfirmation(t *testing.T) {
+	def := Config{}
+	if needsConfirmation("search_files", def) {
+		t.Fatal("search is read-only")
+	}
+	for _, tool := range []string{"make_dir", "move_file", "delete_file"} {
+		if !needsConfirmation(tool, def) {
+			t.Fatalf("%s must ask by default", tool)
+		}
+	}
+	w := Config{AllowWrites: true}
+	if needsConfirmation("make_dir", w) || needsConfirmation("move_file", w) || !needsConfirmation("delete_file", w) {
+		t.Fatal("AllowWrites frees mkdir/move but never delete")
+	}
+	if needsConfirmation("delete_file", Config{AllowAll: true}) {
+		t.Fatal("AllowAll frees everything")
+	}
+}
+
+func TestParseSums(t *testing.T) {
+	h := strings.Repeat("ab", 32)
+	text := "deadbeef  other\n" + h + "  family-ai-runner-linux-x64\n" + strings.Repeat("cd", 32) + " *family-ai-runner-macos-x64\n"
+	if got := parseSums(text, "family-ai-runner-linux-x64"); got != h {
+		t.Fatalf("got %q", got)
+	}
+	if parseSums(text, "family-ai-runner-macos-x64") != strings.Repeat("cd", 32) {
+		t.Fatal("binary marker not handled")
+	}
+	if parseSums(text, "other") != "" || parseSums(text, "nope") != "" {
+		t.Fatal("short or missing hash must not match")
+	}
+}
+
+func TestStampCompare(t *testing.T) {
+	if !stampRe.MatchString("20261126150500") || stampRe.MatchString("2026-11-26") || stampRe.MatchString("") || stampRe.MatchString("<html>") {
+		t.Fatal("stamp format")
+	}
+	if !("20261126150500" > "20261125235959") || "20261126150500" > "20261126150500" {
+		t.Fatal("stamps must compare lexicographically")
+	}
+}
+
+func TestSwapFile(t *testing.T) {
+	dir := t.TempDir()
+	target, tmp := filepath.Join(dir, "r"), filepath.Join(dir, "r.new")
+	os.WriteFile(target, []byte("old"), 0o755)
+	os.WriteFile(tmp, []byte("new"), 0o755)
+	if err := swapFile(target, tmp); err != nil {
+		t.Fatal(err)
+	}
+	if b, _ := os.ReadFile(target); string(b) != "new" {
+		t.Fatalf("target = %q", b)
+	}
+	if _, err := os.Stat(tmp); err == nil && runtime.GOOS != "windows" {
+		t.Fatal("tmp must be gone")
 	}
 }

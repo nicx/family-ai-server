@@ -16,6 +16,7 @@ final class Controller: NSObject, NSApplicationDelegate, NSMenuDelegate {
     var detail = "Angehalten"
     var wantsRun = true
     var buffer = Data()
+    var manualUpdate = false
 
     // Wie der Runner selbst: $HOME/Library/Application Support/FamilyAIRunner/config.json
     let configURL = URL(fileURLWithPath: ProcessInfo.processInfo.environment["HOME"] ?? NSHomeDirectory())
@@ -50,6 +51,9 @@ final class Controller: NSObject, NSApplicationDelegate, NSMenuDelegate {
         let settings = NSMenuItem(title: "Einstellungen …", action: #selector(editSettings), keyEquivalent: ",")
         settings.target = self
         menu.addItem(settings)
+        let upd = NSMenuItem(title: "Nach Updates suchen", action: #selector(checkUpdates), keyEquivalent: "")
+        upd.target = self
+        menu.addItem(upd)
         let log = NSMenuItem(title: "Protokoll anzeigen", action: #selector(showLog), keyEquivalent: "l")
         log.target = self
         menu.addItem(log)
@@ -78,12 +82,13 @@ final class Controller: NSObject, NSApplicationDelegate, NSMenuDelegate {
         return c
     }
 
-    func save(server: String, token: String, workspace: String, confirmWrites: Bool, approveInChat: Bool) {
+    func save(server: String, token: String, workspace: String, confirmWrites: Bool, approveInChat: Bool, autoUpdate: Bool) {
         var c = (try? JSONSerialization.jsonObject(with: Data(contentsOf: configURL)) as? [String: Any]) ?? [:]
         c["server"] = server; c["token"] = token; c["workspace"] = workspace
         c.removeValue(forKey: "confirmWrites") // alter Schlüssel
         if confirmWrites { c.removeValue(forKey: "allowWrites") } else { c["allowWrites"] = true }
         if approveInChat { c["approveInChat"] = true } else { c.removeValue(forKey: "approveInChat") }
+        if autoUpdate { c.removeValue(forKey: "noAutoUpdate") } else { c["noAutoUpdate"] = true }
         try? FileManager.default.createDirectory(at: configURL.deletingLastPathComponent(), withIntermediateDirectories: true,
                                                  attributes: [.posixPermissions: 0o700])
         if let d = try? JSONSerialization.data(withJSONObject: c, options: [.prettyPrinted, .sortedKeys]) {
@@ -94,9 +99,18 @@ final class Controller: NSObject, NSApplicationDelegate, NSMenuDelegate {
 
     // MARK: Runner-Prozess
 
+    // Ein vom Runner selbst geholtes Update liegt neben config.json; es gilt, solange es neuer ist als das Programm im App-Paket
+    // (eine frisch installierte App mit neuerem Runner hat Vorrang).
+    func runnerExecutable() -> URL? {
+        guard let bundled = Bundle.main.resourceURL?.appendingPathComponent("family-ai-runner") else { return nil }
+        let updated = configURL.deletingLastPathComponent().appendingPathComponent("family-ai-runner")
+        func mtime(_ u: URL) -> Date? { try? u.resourceValues(forKeys: [.contentModificationDateKey]).contentModificationDate }
+        if let u = mtime(updated), let b = mtime(bundled), u > b, FileManager.default.isExecutableFile(atPath: updated.path) { return updated }
+        return bundled
+    }
+
     func start() {
-        guard process == nil, config() != nil,
-              let exe = Bundle.main.resourceURL?.appendingPathComponent("family-ai-runner") else { return }
+        guard process == nil, config() != nil, let exe = runnerExecutable() else { return }
         wantsRun = true
         let p = Process()
         p.executableURL = exe
@@ -128,6 +142,10 @@ final class Controller: NSObject, NSApplicationDelegate, NSMenuDelegate {
     func ended(_ p: Process) {
         guard p === process else { return }
         process = nil
+        if wantsRun && p.terminationStatus == 75 { // Runner hat sich aktualisiert: mit der neuen Datei neu starten
+            start()
+            return
+        }
         if wantsRun && state != .failed {
             set(.failed, "Runner beendet (Code \(p.terminationStatus))")
         } else if !wantsRun {
@@ -147,6 +165,22 @@ final class Controller: NSObject, NSApplicationDelegate, NSMenuDelegate {
     func handle(_ raw: String) {
         // Zeitstempel "15:04:05 " vorn abschneiden
         let line = raw.range(of: #"^\d\d:\d\d:\d\d "#, options: .regularExpression).map { String(raw[$0.upperBound...]) } ?? raw
+        if line.hasPrefix("Update:") {
+            let text = String(line.dropFirst(7)).trimmingCharacters(in: .whitespaces)
+            if text.hasPrefix("suche") || text.hasPrefix("neuer Stand") || text.hasPrefix("installiert") { set(state, text) }
+            else if manualUpdate {
+                manualUpdate = false
+                NSApp.activate(ignoringOtherApps: true)
+                let a = NSAlert(); a.messageText = "Family AI Runner"; a.informativeText = text; a.runModal()
+            }
+            return
+        }
+        if line.hasPrefix("Update nicht möglich") && manualUpdate {
+            manualUpdate = false
+            NSApp.activate(ignoringOtherApps: true)
+            let a = NSAlert(); a.messageText = "Update nicht möglich"; a.informativeText = line; a.runModal()
+            return
+        }
         if line.hasPrefix("Verbunden") { set(.connected, "Verbunden") }
         else if line.hasPrefix("Keine Verbindung") { set(.connecting, "Keine Verbindung – neuer Versuch …") }
         else if line.hasPrefix("Anfrage:") { set(.waiting, "Wartet auf deine Bestätigung") }
@@ -184,6 +218,15 @@ final class Controller: NSObject, NSApplicationDelegate, NSMenuDelegate {
         if process == nil {
             if config() == nil { editSettings() } else { start() }
         } else { stop() }
+    }
+
+    @objc func checkUpdates() {
+        guard let p = process, p.isRunning else {
+            let a = NSAlert(); a.messageText = "Der Runner läuft nicht."; a.informativeText = "Starte ihn zuerst, dann kann er nach Updates suchen."; a.runModal()
+            return
+        }
+        manualUpdate = true
+        kill(p.processIdentifier, SIGUSR1)
     }
 
     @objc func showLog() {
@@ -247,7 +290,11 @@ final class Controller: NSObject, NSApplicationDelegate, NSMenuDelegate {
         chat.frame = NSRect(x: 0, y: 30, width: 380, height: 20)
         chat.state = (c["approveInChat"] as? Bool) == true ? .on : .off
         box.addSubview(chat)
-        checks = [writes, chat]
+        let upd = NSButton(checkboxWithTitle: "Automatisch aktualisieren (neue Version vom Server holen)", target: nil, action: nil)
+        upd.frame = NSRect(x: 0, y: 4, width: 380, height: 20)
+        upd.state = (c["noAutoUpdate"] as? Bool) == true ? .off : .on
+        box.addSubview(upd)
+        checks = [writes, chat, upd]
         let a = NSAlert()
         a.messageText = "Family AI Runner einrichten"
         a.informativeText = "Die Werte stehen in der Web-App unter Einstellungen → Computer."
@@ -268,7 +315,7 @@ final class Controller: NSObject, NSApplicationDelegate, NSMenuDelegate {
                 let e = NSAlert(); e.messageText = problem; e.runModal()
                 continue
             }
-            save(server: s, token: t, workspace: w, confirmWrites: checks[0].state == .on, approveInChat: checks[1].state == .on)
+            save(server: s, token: t, workspace: w, confirmWrites: checks[0].state == .on, approveInChat: checks[1].state == .on, autoUpdate: checks[2].state == .on)
             if let p = process {
                 p.terminationHandler = { [weak self] _ in DispatchQueue.main.async { self?.process = nil; self?.start() } }
                 p.terminate()

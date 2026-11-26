@@ -9,12 +9,15 @@ ARG VERSION=0.1.0-dev
 WORKDIR /src/Runner
 COPY Runner/ ./
 RUN set -e; mkdir -p /out; \
-    build() { CGO_ENABLED=0 GOOS=$1 GOARCH=$2 go build -trimpath -ldflags "-s -w -X main.version=$VERSION" -o "/out/$3" .; }; \
-    CGO_ENABLED=0 GOOS=windows GOARCH=amd64 go build -trimpath -tags tray -ldflags "-s -w -H=windowsgui -X main.version=$VERSION" -o /out/family-ai-runner-tray-windows-x64.exe .; \
-    CGO_ENABLED=0 GOOS=windows GOARCH=arm64 go build -trimpath -tags tray -ldflags "-s -w -H=windowsgui -X main.version=$VERSION" -o /out/family-ai-runner-tray-windows-arm64.exe .; \
+    STAMP="$(date -u +%Y%m%d%H%M%S)"; echo "$STAMP" > /out/runner-build; \
+    build() { CGO_ENABLED=0 GOOS=$1 GOARCH=$2 go build -trimpath -ldflags "-s -w -X main.version=$VERSION -X main.build=$STAMP" -o "/out/$3" .; }; \
+    CGO_ENABLED=0 GOOS=windows GOARCH=amd64 go build -trimpath -tags tray -ldflags "-s -w -H=windowsgui -X main.version=$VERSION -X main.build=$STAMP" -o /out/family-ai-runner-tray-windows-x64.exe .; \
+    CGO_ENABLED=0 GOOS=windows GOARCH=arm64 go build -trimpath -tags tray -ldflags "-s -w -H=windowsgui -X main.version=$VERSION -X main.build=$STAMP" -o /out/family-ai-runner-tray-windows-arm64.exe .; \
     build linux amd64 family-ai-runner-linux-x64; \
     build linux arm64 family-ai-runner-linux-arm64; \
     build darwin arm64 family-ai-runner-macos; \
+    build darwin arm64 family-ai-runner-macos-arm64; \
+    build darwin amd64 family-ai-runner-macos-x64; \
     cd /out && sha256sum family-ai-runner-* > SHA256SUMS
 
 # ---- Server ----

@@ -127,7 +127,7 @@ public final class ChatEngine: Sendable {
         if let codeDevice {
             lines.append("""
             Du arbeitest als Programmier-Assistent auf dem Computer „\(codeDevice.name)“ der Person (Arbeitsordner: \(codeDevice.workspace ?? "unbekannt"), System: \(codeDevice.platform ?? "unbekannt")).
-            Werkzeuge: list_files, read_file, write_file, run_command, save_image (legt ein erzeugtes oder hochgeladenes Bild als Datei im Arbeitsordner ab; write_file kann nur Text). Pfade sind relativ zum Arbeitsordner. Jede Aktion muss die Person am Computer freigeben; wird sie abgelehnt, frag nach, statt es erneut zu versuchen.
+            Werkzeuge: list_files, read_file, search_files (Dateinamen und Text in Dateien suchen), write_file, make_dir, move_file (verschiebt/benennt um, überschreibt nie), delete_file (nur einzelne Dateien und leere Ordner), run_command, save_image (legt ein erzeugtes oder hochgeladenes Bild als Datei im Arbeitsordner ab; write_file kann nur Text). Pfade sind relativ zum Arbeitsordner. Jede Aktion muss die Person am Computer freigeben; wird sie abgelehnt, frag nach, statt es erneut zu versuchen.
             Arbeite in kleinen, nachvollziehbaren Schritten und erkläre kurz, was du tust.
             """)
         }
@@ -170,6 +170,16 @@ public final class ChatEngine: Sendable {
                         ["path": ["type": "string"]], ["path"]))
             t.append(fn("write_file", "Schreibt (erstellt oder überschreibt) eine Datei im Arbeitsordner.",
                         ["path": ["type": "string"], "content": ["type": "string"]], ["path", "content"]))
+            t.append(fn("search_files", "Sucht im Arbeitsordner nach Dateinamen (name, z. B. *.swift) und/oder nach Text in Dateien (query, Groß-/Kleinschreibung egal). Liefert Datei:Zeile: Text.",
+                        ["query": ["type": "string", "description": "Gesuchter Text, optional"],
+                         "name": ["type": "string", "description": "Dateinamen-Muster, z. B. *.py, optional"],
+                         "path": ["type": "string", "description": "Unterordner, leer für den ganzen Arbeitsordner"]], []))
+            t.append(fn("make_dir", "Legt einen Ordner (samt fehlender Elternordner) im Arbeitsordner an.",
+                        ["path": ["type": "string"]], ["path"]))
+            t.append(fn("move_file", "Verschiebt oder benennt eine Datei oder einen Ordner im Arbeitsordner um. Überschreibt nie; existiert das Ziel, schlägt es fehl.",
+                        ["from": ["type": "string"], "to": ["type": "string"]], ["from", "to"]))
+            t.append(fn("delete_file", "Löscht eine einzelne Datei oder einen leeren Ordner im Arbeitsordner. Nicht rückgängig zu machen; frag vorher nach, wenn nicht eindeutig gewünscht.",
+                        ["path": ["type": "string"]], ["path"]))
             t.append(fn("run_command", "Führt einen Shell-Befehl im Arbeitsordner aus und liefert die Ausgabe.",
                         ["command": ["type": "string"]], ["command"]))
             t.append(fn("save_image", "Speichert ein Bild aus diesem Chat (erzeugt oder hochgeladen) als Datei im Arbeitsordner, z. B. header.jpg. Ohne file_id wird das neueste Bild genommen. Erlaubt: png, jpg, jpeg, webp, gif, höchstens 5 MB.",
@@ -399,7 +409,7 @@ public final class ChatEngine: Sendable {
                 var names: [String: String] = [:]
                 for h in hits where names[h.fileId] == nil { names[h.fileId] = try await store.file(id: h.fileId)?.name ?? "Dokument" }
                 return hits.map { "[\(names[$0.fileId] ?? "Dokument")]\n\($0.text)" }.joined(separator: "\n\n---\n\n")
-            case "list_files", "read_file", "write_file", "run_command":
+            case "list_files", "read_file", "write_file", "run_command", "search_files", "make_dir", "move_file", "delete_file":
                 guard let dev = codeDevice else { return "Kein Gerät verbunden." }
                 var sargs: [String: String] = [:]
                 for (k, v) in args { sargs[k] = (v as? String) ?? "\(v)" }
@@ -408,6 +418,10 @@ public final class ChatEngine: Sendable {
                 case "run_command": label = "Befehl: \(sargs["command"] ?? "")"
                 case "write_file": label = "Schreibe \(sargs["path"] ?? "")"
                 case "read_file": label = "Lese \(sargs["path"] ?? "")"
+                case "search_files": label = "Suche \(sargs["query"] ?? sargs["name"] ?? "")"
+                case "make_dir": label = "Lege Ordner \(sargs["path"] ?? "") an"
+                case "move_file": label = "Verschiebe \(sargs["from"] ?? "") → \(sargs["to"] ?? "")"
+                case "delete_file": label = "Lösche \(sargs["path"] ?? "")"
                 default: label = "Liste \(sargs["path"].flatMap { $0.isEmpty ? nil : $0 } ?? "Arbeitsordner")"
                 }
                 await emit(.status("\(label) – wartet auf Freigabe an „\(dev.name)“ …"))

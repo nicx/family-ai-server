@@ -198,6 +198,10 @@ public actor RunnerHub {
             return ("Datei schreiben", (a["path"] ?? "") + "\n\n" + (c.count > 1500 ? String(c.prefix(1500)) + "\n…" : c))
         case "save_image": return ("Bild speichern", a["path"] ?? "")
         case "read_file": return ("Datei lesen", a["path"] ?? "")
+        case "search_files": return ("Dateien durchsuchen", a["query"] ?? a["name"] ?? "")
+        case "make_dir": return ("Ordner anlegen", a["path"] ?? "")
+        case "move_file": return ("Datei verschieben", (a["from"] ?? "") + " → " + (a["to"] ?? ""))
+        case "delete_file": return ("Datei löschen", a["path"] ?? "")
         default: return ("Dateien auflisten", a["path"] ?? ".")
         }
     }
