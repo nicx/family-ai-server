@@ -237,6 +237,7 @@ public final class ChatEngine: Sendable {
         var attachments: [Attachment] = []
         var sources: [Source] = []
         var toolNames: [String] = []
+        var toolLog: [ToolLogEntry] = []
         var totalCost = 0.0
         do {
             guard let key = keys.get(user.id), !key.isEmpty else {
@@ -316,6 +317,8 @@ public final class ChatEngine: Sendable {
                     let result = await runTool(call.name, args: args, user: user, chat: chat, key: key, settings: settings,
                                                codeDevice: codeDevice, emit: emit, attachments: &attachments, cost: &totalCost)
                     messages.append(["role": "tool", "tool_call_id": call.id, "content": result])
+                    toolLog.append(ToolLogEntry(name: call.name, args: String(call.arguments.prefix(600)),
+                                                result: String(result.prefix(1500))))
                 }
             }
             if content.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty && attachments.isEmpty {
@@ -330,6 +333,7 @@ public final class ChatEngine: Sendable {
         meta.cost = totalCost > 0 ? totalCost : nil
         meta.sources = sources.isEmpty ? nil : sources
         meta.tools = toolNames.isEmpty ? nil : toolNames
+        meta.toolLog = toolLog.isEmpty ? nil : toolLog
         if content.isEmpty && attachments.isEmpty && meta.error == nil { return nil }
         let msg = Message(id: newID(), chatId: chat.id, role: "assistant", content: content.trimmingCharacters(in: .whitespacesAndNewlines),
                           attachments: attachments, meta: meta, createdAt: now())

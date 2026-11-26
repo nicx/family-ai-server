@@ -91,7 +91,15 @@ public struct MessageMeta: Codable, Sendable, Equatable {
     public var completionTokens: Int?
     public var sources: [Source]?
     public var tools: [String]?
+    /// Werkzeugaufrufe mit gekürzten Argumenten und Ergebnissen – nur zur Fehlersuche (Admin), nicht fürs Modell.
+    public var toolLog: [ToolLogEntry]?
     public var error: String?
+}
+
+public struct ToolLogEntry: Codable, Sendable, Equatable {
+    public var name: String
+    public var args: String
+    public var result: String
 }
 
 public struct Message: Codable, Sendable {
