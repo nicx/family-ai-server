@@ -96,10 +96,10 @@ public final class ChatEngine: Sendable {
         let name = Self.firstName(user.displayName)
         if settings.language == "en" {
             lines.append("You are \(settings.aiName), the AI assistant\(family). You are talking with \(name).")
-            lines.append("Today is \(df.string(from: Date())). Answer in the language the person writes in. Use Markdown where it helps.")
+            lines.append("Today is \(df.string(from: Date())). Answer in the language of the person's latest message and never switch language in the middle of an answer, not even after tool results in another language. Use Markdown where it helps.")
         } else {
             lines.append("Du bist \(settings.aiName), die KI\(family). Du sprichst mit \(name).")
-            lines.append("Heute ist \(df.string(from: Date())). Antworte in der Sprache, in der die Person schreibt. Nutze Markdown, wo es hilft.")
+            lines.append("Heute ist \(df.string(from: Date())). Antworte in der Sprache der letzten Nachricht der Person und wechsle die Sprache nie mitten in einer Antwort, auch nicht nach Werkzeugergebnissen in einer anderen Sprache. Nutze Markdown, wo es hilft.")
         }
         if user.role == .child {
             lines.append("Die Person ist ein Kind. Sprich verständlich, freundlich und respektvoll – nicht kindisch, nicht übertrieben begeistert. Keine Inhalte, die für Kinder ungeeignet sind. Bei Hausaufgaben hilfst du beim Verstehen und beim Lösungsweg, ohne die fertige Lösung zu verraten.")
